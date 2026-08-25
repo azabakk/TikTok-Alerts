@@ -1,10 +1,9 @@
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
-const packageConnector = require('tiktok-live-connector');
-const WebcastPushConnection = packageConnector.WebcastPushConnection || packageConnector;
 
-
+// Importamos la nueva clase de conexión que exige la librería en su versión "latest"
+const { TikTokLiveConnection } = require('tiktok-live-connector');
 
 const app = express();
 const server = http.createServer(app);
@@ -24,7 +23,9 @@ io.on('connection', (socket) => {
         console.log(`Conectando con: @${cleanUsername}`);
         
         try {
-            tiktokConnection = new WebcastPushConnection(cleanUsername);
+            // Corregido: Ahora se instancia usando la nueva clase TikTokLiveConnection
+            tiktokConnection = new TikTokLiveConnection(cleanUsername);
+            
             tiktokConnection.connect().then(state => {
                 console.log(`Conectado al Room ID: ${state.roomId}`);
                 socket.emit('connection-status', { status: 'connected', message: `Conectado a @${cleanUsername}` });
@@ -39,10 +40,12 @@ io.on('connection', (socket) => {
                 socket.emit('connection-status', { status: 'disconnected', message: 'Error de conexion' });
             });
 
-            tiktokConnection.on('member', (data) => {
+            // Evento cuando entra alguien al Live (Equivalente al viejo 'member')
+            tiktokConnection.on('roomUser', (data) => {
                 socket.emit('play-alert', { type: 'follow', name: data.uniqueId });
             });
 
+            // Evento de Likes masivos o individuales
             tiktokConnection.on('like', (data) => {
                 const userId = data.uniqueId;
                 if (!likedUsers.has(userId)) {
@@ -51,6 +54,7 @@ io.on('connection', (socket) => {
                 }
             });
 
+            // Evento de regalos recibidos en el directo
             tiktokConnection.on('gift', (data) => {
                 if (data.giftType === 1 && !data.repeatEnd) return;
                 const diamondCount = data.diamondCount * data.repeatCount;

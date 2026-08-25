@@ -1,9 +1,8 @@
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
+const { TikTokLiveConnection } = require('tiktok-live-connector').default;
 
-// Importamos la nueva clase de conexión que exige la librería en su versión "latest"
-const { TikTokLiveConnection } = require('tiktok-live-connector');
 
 const app = express();
 const server = http.createServer(app);

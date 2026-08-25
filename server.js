@@ -40,7 +40,6 @@ io.on('connection', (socket) => {
         console.log(`Conectando con: @${cleanUsername}`);
         
         try {
-            // Instanciamos pasándole opciones por defecto para evitar errores internos
             tiktokConnection = new TikTokLiveConnection(cleanUsername, {
                 enableWebsocketUpgrade: true
             });
@@ -48,7 +47,6 @@ io.on('connection', (socket) => {
             tiktokConnection.connect().then(state => {
                 console.log(`Conectado al Room ID: ${state.roomId}`);
                 
-                // IMPORTANTE: Sincronizamos tanto el estado como las cajas del monitor al iniciar
                 socket.emit('connection-status', { status: 'connected', message: `Conectado a @${cleanUsername}` });
                 io.emit('update-interactions', activeUsers);
 
@@ -62,30 +60,38 @@ io.on('connection', (socket) => {
                 socket.emit('connection-status', { status: 'disconnected', message: 'Error o el streamer no está en vivo' });
             });
 
-            // Captura de eventos del Live
+            // 1. Seguidores o entradas al live (CORREGIDO para evitar @null)
             tiktokConnection.on('roomUser', (data) => {
-                const username = data.uniqueId;
-                if (!activeUsers.followers.includes(username)) {
+                let username = null;
+                if (data.createUser && data.createUser.uniqueId) {
+                    username = data.createUser.uniqueId;
+                } else if (data.uniqueId) {
+                    username = data.uniqueId;
+                }
+
+                if (username && !activeUsers.followers.includes(username)) {
                     activeUsers.followers.push(username);
                     io.emit('update-interactions', activeUsers);
                 }
-                io.emit('play-alert', { type: 'follow', name: username });
+                io.emit('play-alert', { type: 'follow', name: username || 'Usuario' });
             });
 
+            // 2. Likes recibidos (CORREGIDO para evitar @null)
             tiktokConnection.on('like', (data) => {
                 const username = data.uniqueId;
-                if (!activeUsers.likers.includes(username)) {
+                if (username && !activeUsers.likers.includes(username)) {
                     activeUsers.likers.push(username);
                     io.emit('update-interactions', activeUsers);
                 }
-                io.emit('play-alert', { type: 'like', name: username });
+                io.emit('play-alert', { type: 'like', name: username || 'Usuario' });
             });
 
+            // 3. Regalos recibidos (CORREGIDO para evitar @null)
             tiktokConnection.on('gift', (data) => {
                 if (data.giftType === 1 && !data.repeatEnd) return;
                 
                 const username = data.uniqueId;
-                if (!activeUsers.gifters.includes(username)) {
+                if (username && !activeUsers.gifters.includes(username)) {
                     activeUsers.gifters.push(username);
                     io.emit('update-interactions', activeUsers);
                 }
@@ -96,7 +102,7 @@ io.on('connection', (socket) => {
                 else if (diamondCount >= 1000) tier = 'high';
                 else if (diamondCount >= 100) tier = 'medium';
                 
-                io.emit('play-alert', { type: 'gift', name: username, giftName: data.giftName, tier: tier, diamonds: diamondCount });
+                io.emit('play-alert', { type: 'gift', name: username || 'Usuario', giftName: data.giftName, tier: tier, diamonds: diamondCount });
             });
 
         } catch (error) {

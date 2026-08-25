@@ -1,6 +1,7 @@
 {
   "name": "tiktok-alerts",
   "version": "1.0.0",
+  "type": "module",
   "description": "Alertas de TikTok Live",
   "main": "server.js",
   "scripts": {

@@ -4,16 +4,22 @@ const { Server } = require('socket.io');
 const fs = require('fs');
 const path = require('path');
 
-// 1. IMPORTACIÓN OFICIAL EXIGIDA POR LA LIBRERÍA
 const { TikTokLiveConnection, SignConfig } = require('tiktok-live-connector');
 
-// 2. CONFIGURACIÓN DEL ESCUDO DE FIRMAS (EULER STREAM)
-// Coloca aquí tu API Key del plan gratuito. Esto evitará los bloqueos de TikTok.
+// CONFIGURACIÓN DEL SERVIDOR DE FIRMAS (EULER STREAM)
+// Coloca aquí tu API Key del plan gratuito de eulerstream.com
 SignConfig.apiKey = "euler_NjFlOTE3NWRjZWQwZTg5ODY4ZjJhMTBiMTQwOTBmZjZhY2NjZmUyMzdjMzcxZDVjNDdlY2Nm"; 
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server);
+
+// CORRECCIÓN CLAVE: Permitimos conexiones Socket de cualquier origen para evitar bloqueos en Render
+const io = new Server(server, {
+    cors: {
+        origin: "*",
+        methods: ["GET", "POST"]
+    }
+});
 
 app.use(express.static('public'));
 
@@ -33,7 +39,7 @@ function getAvailableSounds() {
 }
 
 io.on('connection', (socket) => {
-    console.log('Dispositivo movil conectado');
+    console.log('Cliente conectado al panel web');
     let tiktokConnection = null;
     let sessionTimeout = null;
 
@@ -42,27 +48,26 @@ io.on('connection', (socket) => {
     socket.on('start-live', (tiktokUsername) => {
         if (!tiktokUsername) return;
         const cleanUsername = tiktokUsername.replace('@', '').trim();
-        console.log(`Intentando enlazar con: @${cleanUsername}`);
+        console.log(`Intentando enlazar con TikTok LIVE: @${cleanUsername}`);
         
         try {
-            // Inicialización limpia e integrada con las firmas globales
             tiktokConnection = new TikTokLiveConnection(cleanUsername, {
                 enableWebsocketUpgrade: true
             });
             
             tiktokConnection.connect().then(state => {
-                console.log(`Conectado al Room ID: ${state.roomId}`);
+                console.log(`Conectado exitosamente al Room ID de TikTok: ${state.roomId}`);
                 socket.emit('connection-status', { status: 'connected', message: `Conectado a @${cleanUsername}` });
                 io.emit('update-interactions', activeUsers);
 
                 sessionTimeout = setTimeout(() => {
                     if (tiktokConnection) tiktokConnection.disconnect();
-                    socket.emit('connection-status', { status: 'disconnected', message: 'Limite de tiempo' });
+                    socket.emit('connection-status', { status: 'disconnected', message: 'Límite de tiempo alcanzado' });
                 }, 21600000); 
 
             }).catch(err => {
-                console.error('Error al conectar:', err.message);
-                socket.emit('connection-status', { status: 'disconnected', message: 'Error de conexión o IP bloqueada' });
+                console.error('Error al conectar con TikTok:', err.message);
+                socket.emit('connection-status', { status: 'disconnected', message: 'Error o el streamer no está en vivo' });
             });
 
             // Monitor de Seguidores
@@ -81,7 +86,7 @@ io.on('connection', (socket) => {
                 io.emit('play-alert', { type: 'follow', name: username || 'Usuario' });
             });
 
-            // Monitor de Regalos desglosados
+            // Monitor de Regalos
             tiktokConnection.on('gift', (data) => {
                 if (data.giftType === 1 && !data.repeatEnd) return;
                 
@@ -112,8 +117,8 @@ io.on('connection', (socket) => {
             });
 
         } catch (error) {
-            console.error('Error critico:', error.message);
-            socket.emit('connection-status', { status: 'disconnected', message: 'Error de inicialización' });
+            console.error('Error crítico en el conector:', error.message);
+            socket.emit('connection-status', { status: 'disconnected', message: 'Error interno de inicialización' });
         }
     });
 

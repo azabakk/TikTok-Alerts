@@ -247,6 +247,40 @@
                 usernameInput.disabled = false;
             }
         });
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const socket = io();
+        let alertSoundsConfig = { follow: '', like: '', gift: '' };
+
+        const connectBtn = document.getElementById('connect-btn');
+        const disconnectBtn = document.getElementById('disconnect-btn');
+        const usernameInput = document.getElementById('username-input');
+        const statusLabel = document.getElementById('status-label');
+
+        connectBtn.addEventListener('click', () => {
+            const user = usernameInput.value;
+            if(user) {
+                statusLabel.textContent = "Estado: Intentando conectar...";
+                socket.emit('start-live', user);
+            }
+        });
+
+        disconnectBtn.addEventListener('click', () => {
+            socket.emit('stop-live');
+        });
+
+        socket.on('connection-status', (data) => {
+            statusLabel.textContent = `Estado: ${data.message}`;
+            if(data.status === 'connected') {
+                connectBtn.style.display = 'none';
+                disconnectBtn.style.display = 'block';
+                usernameInput.disabled = true;
+            } else {
+                connectBtn.style.display = 'block';
+                disconnectBtn.style.display = 'none';
+                usernameInput.disabled = false;
+            }
+        });
 
         socket.on('available-sounds', (soundsList) => {
             const selectors = ['follow-sound-select', 'like-sound-select', 'gift-sound-select'];
@@ -305,3 +339,4 @@
                     : '<p class="empty-notice">Esperando interacciones...</p>';
             }
         });
+    </script>

@@ -1,7 +1,11 @@
 import express from 'express';
 import http from 'http';
 import { Server } from 'socket.io';
-import { TikTokLiveConnection } from 'tiktok-live-connector';
+
+// Importamos el paquete completo
+import tiktokLivePkg from 'tiktok-live-connector';
+// Extraemos de forma segura el objeto de conexión correcto
+const { TikTokLiveConnection } = tiktokLivePkg;
 
 const app = express();
 const server = http.createServer(app);

@@ -60,7 +60,7 @@
     <h1>StreamAlerts <span>LIVE</span></h1>
 
     <div class="container">
-        <!-- CONFIGURACIÓN -->
+        <!-- COLUMNA IZQUIERDA -->
         <div>
             <div class="card">
                 <h2>🔗 Conectar Transmisión</h2>
@@ -88,7 +88,7 @@
             </div>
         </div>
 
-        <!-- MONITOR -->
+        <!-- COLUMNA MONITOR -->
         <div class="card monitor-card">
             <h2>📊 Monitor de Actividad</h2>
             <div class="monitor-grid">
@@ -111,7 +111,6 @@
 
     <script src="/socket.io/socket.io.js"></script>
     <script>
-        // CORRECCIÓN CLAVE: Forzamos transporte seguro por websockets para saltarnos proxies intermedios
         const socket = io({
             transports: ['websocket', 'polling']
         });
@@ -165,7 +164,7 @@
                 }
                 selectEl.addEventListener('change', (e) => {
                     const type = id.split('-'); 
-                    alertSoundsConfig[type] = e.target.value;
+                    alertSoundsConfig[type[0]] = e.target.value;
                 });
             });
         });
@@ -180,27 +179,25 @@
 
         socket.on('update-interactions', (activeUsers) => {
             const followersList = document.getElementById('followers-container');
-    const giftersList = document.getElementById('gifters-container');
+            const giftersList = document.getElementById('gifters-container');
+                    if (followersList) {
+            document.getElementById('count-followers').textContent = activeUsers.followers.length;
+            followersList.innerHTML = activeUsers.followers.length > 0
+                ? activeUsers.followers.map(user => `<li>@${user}</li>`).join('')
+                : '<p class="empty-notice">Esperando seguidores...</p>';
+        }
 
-    // 1. Renderizar la columna de Seguidores
-    if (followersList) {
-        document.getElementById('count-followers').textContent = activeUsers.followers.length;
-        followersList.innerHTML = activeUsers.followers.length > 0
-            ? activeUsers.followers.map(user => `<li>@${user}</li>`).join('')
-            : '<p class="empty-notice">Esperando seguidores...</p>';
-    }
+        if (giftersList) {
+            document.getElementById('count-gifters').textContent = activeUsers.gifters.length;
+            giftersList.innerHTML = activeUsers.gifters.length > 0
+                ? activeUsers.gifters.map(giftObj => `
+                    <li>
+                        <span>@${giftObj.username}</span>
+                        <span class="gift-info">${giftObj.giftName} (${giftObj.diamonds}💎)</span>
+                    </li>
+                `).join('')
+                : '<p class="empty-notice">Esperando regalos...</p>';
+        }
+    });
+                                          
 
-    // 2. Renderizar la columna de Regalos con su Desglose
-    if (giftersList) {
-        document.getElementById('count-gifters').textContent = activeUsers.gifters.length;
-        giftersList.innerHTML = activeUsers.gifters.length > 0
-            ? activeUsers.gifters.map(giftObj => `
-                <li>
-                    <span>@${giftObj.username}</span>
-                    <span class="gift-info">${giftObj.giftName} (${giftObj.diamonds}💎)</span>
-                </li>
-            `).join('')
-            : '<p class="empty-notice">Esperando regalos...</p>';
-    }
-});
-        

@@ -60,7 +60,7 @@ io.on('connection', (socket) => {
                 socket.emit('connection-status', { status: 'disconnected', message: 'Error o el streamer no está en vivo' });
             });
 
-            // 1. Seguidores o entradas al live (CORREGIDO para evitar @null)
+                        // 1. Seguidores o entradas al live
             tiktokConnection.on('roomUser', (data) => {
                 let username = null;
                 if (data.createUser && data.createUser.uniqueId) {
@@ -76,35 +76,46 @@ io.on('connection', (socket) => {
                 io.emit('play-alert', { type: 'follow', name: username || 'Usuario' });
             });
 
-            // 2. Likes recibidos (CORREGIDO para evitar @null)
+            // 2. Likes recibidos (Optimizado para procesar likes masivos)
             tiktokConnection.on('like', (data) => {
-                const username = data.uniqueId;
-                if (username && !activeUsers.likers.includes(username)) {
+                const username = data.uniqueId || 'Espectador';
+                
+                // Si el usuario no está registrado en el histórico, lo añadimos
+                if (!activeUsers.likers.includes(username)) {
                     activeUsers.likers.push(username);
-                    io.emit('update-interactions', activeUsers);
                 }
-                io.emit('play-alert', { type: 'like', name: username || 'Usuario' });
+                
+                // Sincronizamos las interacciones reflejando el incremento
+                io.emit('update-interactions', activeUsers);
+                io.emit('play-alert', { type: 'like', name: username });
             });
 
-            // 3. Regalos recibidos (CORREGIDO para evitar @null)
+            // 3. Regalos recibidos (Optimizado para mapear cantidad exacta)
             tiktokConnection.on('gift', (data) => {
+                // Validación para evitar procesar ráfagas incompletas
                 if (data.giftType === 1 && !data.repeatEnd) return;
                 
-                const username = data.uniqueId;
-                if (username && !activeUsers.gifters.includes(username)) {
+                const username = data.uniqueId || 'Donador';
+                if (!activeUsers.gifters.includes(username)) {
                     activeUsers.gifters.push(username);
-                    io.emit('update-interactions', activeUsers);
                 }
+                
+                io.emit('update-interactions', activeUsers);
 
-                const diamondCount = data.diamondCount * data.repeatCount;
+                const diamondCount = data.diamondCount * (data.repeatCount || 1);
                 let tier = 'low';
                 if (diamondCount >= 5000) tier = 'epic';
                 else if (diamondCount >= 1000) tier = 'high';
                 else if (diamondCount >= 100) tier = 'medium';
                 
-                io.emit('play-alert', { type: 'gift', name: username || 'Usuario', giftName: data.giftName, tier: tier, diamonds: diamondCount });
-            });
-
+                io.emit('play-alert', { 
+                    type: 'gift', 
+                    name: username, 
+                    giftName: data.giftName || 'Regalo', 
+                    tier: tier, 
+                    diamonds: diamondCount 
+                });
+            
         } catch (error) {
             console.error('Error critico:', error.message);
             socket.emit('connection-status', { status: 'disconnected', message: 'Error interno' });

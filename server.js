@@ -1,9 +1,7 @@
-import express = require('express');
-import http = require('http');
-import { Server } = require('socket.io');
-import tiktokLive = require('tiktok-live-connector');
-import TikTokLiveConnection = tiktokLive.TikTokLiveConnection;
-
+import express from 'express';
+import http from 'http';
+import { Server } from 'socket.io';
+import { TikTokLiveConnection } from 'tiktok-live-connector';
 
 const app = express();
 const server = http.createServer(app);
@@ -23,7 +21,7 @@ io.on('connection', (socket) => {
         console.log(`Conectando con: @${cleanUsername}`);
         
         try {
-            // Corregido: Ahora se instancia usando la nueva clase TikTokLiveConnection
+            // Instancia nativa compatible con ES Modules
             tiktokConnection = new TikTokLiveConnection(cleanUsername);
             
             tiktokConnection.connect().then(state => {
@@ -40,12 +38,10 @@ io.on('connection', (socket) => {
                 socket.emit('connection-status', { status: 'disconnected', message: 'Error de conexion' });
             });
 
-            // Evento cuando entra alguien al Live (Equivalente al viejo 'member')
             tiktokConnection.on('roomUser', (data) => {
                 socket.emit('play-alert', { type: 'follow', name: data.uniqueId });
             });
 
-            // Evento de Likes masivos o individuales
             tiktokConnection.on('like', (data) => {
                 const userId = data.uniqueId;
                 if (!likedUsers.has(userId)) {
@@ -54,7 +50,6 @@ io.on('connection', (socket) => {
                 }
             });
 
-            // Evento de regalos recibidos en el directo
             tiktokConnection.on('gift', (data) => {
                 if (data.giftType === 1 && !data.repeatEnd) return;
                 const diamondCount = data.diamondCount * data.repeatCount;

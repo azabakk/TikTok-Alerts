@@ -4,8 +4,12 @@ const { Server } = require('socket.io');
 const fs = require('fs');
 const path = require('path');
 
-// Cargamos la librería base de forma directa para evitar desestructuraciones erróneas en CommonJS
-const tiktokLiveConnector = require('tiktok-live-connector');
+// 1. IMPORTACIÓN OFICIAL EXIGIDA POR LA LIBRERÍA
+const { TikTokLiveConnection, SignConfig } = require('tiktok-live-connector');
+
+// 2. CONFIGURACIÓN DEL ESCUDO DE FIRMAS (EULER STREAM)
+// Coloca aquí tu API Key del plan gratuito. Esto evitará los bloqueos de TikTok.
+SignConfig.apiKey = "euler_NjFlOTE3NWRjZWQwZTg5ODY4ZjJhMTBiMTQwOTBmZjZhY2NjZmUyMzdjMzcxZDVjNDdlY2Nm"; 
 
 const app = express();
 const server = http.createServer(app);
@@ -19,9 +23,13 @@ let activeUsers = {
 };
 
 function getAvailableSounds() {
-    const soundsDir = path.join(__dirname, 'public', 'sounds');
-    if (!fs.existsSync(soundsDir)) return [];
-    return fs.readdirSync(soundsDir).filter(file => file.endsWith('.mp3'));
+    try {
+        const soundsDir = path.join(__dirname, 'public', 'sounds');
+        if (!fs.existsSync(soundsDir)) return [];
+        return fs.readdirSync(soundsDir).filter(file => file.endsWith('.mp3'));
+    } catch (error) {
+        return [];
+    }
 }
 
 io.on('connection', (socket) => {
@@ -37,14 +45,8 @@ io.on('connection', (socket) => {
         console.log(`Intentando enlazar con: @${cleanUsername}`);
         
         try {
-            // Evaluamos dinámicamente cuál es el constructor válido de la librería
-            const ConnectionClass = tiktokLiveConnector.TikTokLiveConnection || 
-                                    tiktokLiveConnector.WebcastPushConnection || 
-                                    tiktokLiveConnector;
-
-            // CORRECCIÓN CLAVE: Pasamos tu API Key de Euler Stream directamente en las opciones del constructor
-            tiktokConnection = new ConnectionClass(cleanUsername, {
-                signApiKey: "euler_NjFlOTE3NWRjZWQwZTg5ODY4ZjJhMTBiMTQwOTBmZjZhY2NjZmUyMzdjMzcxZDVjNDdlY2Nm", // <-- Reemplaza con tu clave de eulerstream.com
+            // Inicialización limpia e integrada con las firmas globales
+            tiktokConnection = new TikTokLiveConnection(cleanUsername, {
                 enableWebsocketUpgrade: true
             });
             
@@ -63,7 +65,7 @@ io.on('connection', (socket) => {
                 socket.emit('connection-status', { status: 'disconnected', message: 'Error de conexión o IP bloqueada' });
             });
 
-            // 1. Seguidores
+            // Monitor de Seguidores
             tiktokConnection.on('roomUser', (data) => {
                 let username = null;
                 if (data.createUser && data.createUser.uniqueId) {
@@ -79,7 +81,7 @@ io.on('connection', (socket) => {
                 io.emit('play-alert', { type: 'follow', name: username || 'Usuario' });
             });
 
-            // 2. Regalos desglosados
+            // Monitor de Regalos desglosados
             tiktokConnection.on('gift', (data) => {
                 if (data.giftType === 1 && !data.repeatEnd) return;
                 
@@ -111,7 +113,7 @@ io.on('connection', (socket) => {
 
         } catch (error) {
             console.error('Error critico:', error.message);
-            socket.emit('connection-status', { status: 'disconnected', message: 'Error interno de inicialización' });
+            socket.emit('connection-status', { status: 'disconnected', message: 'Error de inicialización' });
         }
     });
 

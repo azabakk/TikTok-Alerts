@@ -1,7 +1,7 @@
 {
-  "name": "tiktok-alerts-app",
+  "name": "tiktok-alerts",
   "version": "1.0.0",
-  "description": "App de alertas para TikTok Live",
+  "description": "Alertas de TikTok Live",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
@@ -9,6 +9,6 @@
   "dependencies": {
     "express": "^4.19.2",
     "socket.io": "^4.7.5",
-    "tiktok-live-connector": "^2.4.3"
+    "tiktok-live-connector": "^1.2.9"
   }
 }

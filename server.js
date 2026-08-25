@@ -1,11 +1,10 @@
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
+const fs = require('fs');
+const path = require('path');
 
-// Importación precisa para evitar problemas de compatibilidad interna en Node.js
 const tiktokLiveConnector = require('tiktok-live-connector');
-
-// Accedemos explícitamente a la clase correcta según el empaquetado del autor
 const TikTokLiveConnection = tiktokLiveConnector.TikTokLiveConnection || 
                              tiktokLiveConnector.WebcastPushConnection || 
                              tiktokLiveConnector;
@@ -15,12 +14,28 @@ const server = http.createServer(app);
 const io = new Server(server);
 
 app.use(express.static('public'));
-let likedUsers = new Set();
+
+// Estructura para almacenar los usuarios activos que interactúan en la sesión
+let activeUsers = {
+    followers: [],
+    likers: [],
+    gifters: []
+};
+
+// Función para obtener la lista de sonidos de la carpeta de forma manual
+function getAvailableSounds() {
+    const soundsDir = path.join(__dirname, 'public', 'sounds');
+    if (!fs.existsSync(soundsDir)) return [];
+    return fs.readdirSync(soundsDir).filter(file => file.endsWith('.mp3'));
+}
 
 io.on('connection', (socket) => {
     console.log('Dispositivo movil conectado');
     let tiktokConnection = null;
     let sessionTimeout = null;
+
+    // Al conectarse el frontend, le enviamos el repositorio de sonidos disponibles
+    socket.emit('available-sounds', getAvailableSounds());
 
     socket.on('start-live', (tiktokUsername) => {
         if (!tiktokUsername) return;
@@ -28,7 +43,6 @@ io.on('connection', (socket) => {
         console.log(`Conectando con: @${cleanUsername}`);
         
         try {
-            // Pasamos un objeto vacío de opciones {} como segundo parámetro para evitar que intente leer valores indefinidos
             tiktokConnection = new TikTokLiveConnection(cleanUsername, {});
             
             tiktokConnection.connect().then(state => {
@@ -45,29 +59,43 @@ io.on('connection', (socket) => {
                 socket.emit('connection-status', { status: 'disconnected', message: 'Error de conexion' });
             });
 
-            // Usamos "roomUser" que es el evento estándar de la última versión
+            // 1. Interacción: Nuevos Seguidores o entradas al live
             tiktokConnection.on('roomUser', (data) => {
-                socket.emit('play-alert', { type: 'follow', name: data.uniqueId });
-            });
-
-            tiktokConnection.on('like', (data) => {
-                const userId = data.uniqueId;
-                if (!likedUsers.has(userId)) {
-                    likedUsers.add(userId);
-                    socket.emit('play-alert', { type: 'like', name: userId });
+                const username = data.uniqueId;
+                if (!activeUsers.followers.includes(username)) {
+                    activeUsers.followers.push(username);
+                    io.emit('update-interactions', activeUsers); // Enviamos lista global actualizada
                 }
+                socket.emit('play-alert', { type: 'follow', name: username });
             });
 
+            // 2. Interacción: Likes recibidos
+            tiktokConnection.on('like', (data) => {
+                const username = data.uniqueId;
+                if (!activeUsers.likers.includes(username)) {
+                    activeUsers.likers.push(username);
+                    io.emit('update-interactions', activeUsers);
+                }
+                socket.emit('play-alert', { type: 'like', name: username });
+            });
+
+            // 3. Interacción: Regalos recibidos
             tiktokConnection.on('gift', (data) => {
                 if (data.giftType === 1 && !data.repeatEnd) return;
+                
+                const username = data.uniqueId;
+                if (!activeUsers.gifters.includes(username)) {
+                    activeUsers.gifters.push(username);
+                    io.emit('update-interactions', activeUsers);
+                }
+
                 const diamondCount = data.diamondCount * data.repeatCount;
                 let tier = 'low';
-
                 if (diamondCount >= 5000) tier = 'epic';
                 else if (diamondCount >= 1000) tier = 'high';
                 else if (diamondCount >= 100) tier = 'medium';
                 
-                socket.emit('play-alert', { type: 'gift', name: data.uniqueId, giftName: data.giftName, tier: tier, diamonds: diamondCount });
+                socket.emit('play-alert', { type: 'gift', name: username, giftName: data.giftName, tier: tier, diamonds: diamondCount });
             });
 
         } catch (error) {
@@ -80,7 +108,9 @@ io.on('connection', (socket) => {
         if (tiktokConnection) {
             try { tiktokConnection.disconnect(); } catch (e) {}
             clearTimeout(sessionTimeout);
-            likedUsers.clear();
+            // Limpiamos los históricos de interacción al desconectar
+            activeUsers = { followers: [], likers: [], gifters: [] };
+            io.emit('update-interactions', activeUsers);
             socket.emit('connection-status', { status: 'disconnected', message: 'Desconectado' });
         }
     });

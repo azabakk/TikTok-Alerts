@@ -60,7 +60,7 @@ io.on('connection', (socket) => {
                 socket.emit('connection-status', { status: 'disconnected', message: 'Error o el streamer no está en vivo' });
             });
 
-                        // 1. Seguidores o entradas al live
+                                    // 1. Seguidores o entradas al live
             tiktokConnection.on('roomUser', (data) => {
                 let username = null;
                 if (data.createUser && data.createUser.uniqueId) {
@@ -115,6 +115,8 @@ io.on('connection', (socket) => {
                     tier: tier, 
                     diamonds: diamondCount 
                 });
+            });
+
             
         } catch (error) {
             console.error('Error critico:', error.message);

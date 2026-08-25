@@ -276,39 +276,32 @@
         });
 
         // REESTRUCTURADO: Renderizador dinámico de contadores y listas en tiempo real
-        socket.on('update-interactions', (activeUsers) => {
+                socket.on('update-interactions', (activeUsers) => {
             const followersList = document.getElementById('followers-container');
             const likersList = document.getElementById('likers-container');
             const giftersList = document.getElementById('gifters-container');
 
-            // 1. Procesar Seguidores
+            // Actualizar Seguidores
             if (followersList) {
                 document.getElementById('count-followers').textContent = activeUsers.followers.length;
-                if (activeUsers.followers.length > 0) {
-                    followersList.innerHTML = activeUsers.followers.map(user => `<li>@${user}</li>`).join('');
-                } else {
-                    followersList.innerHTML = '<p class="empty-notice">Esperando interacciones...</p>';
-                }
+                followersList.innerHTML = activeUsers.followers.length > 0 
+                    ? activeUsers.followers.map(user => `<li>@${user}</li>`).join('')
+                    : '<p class="empty-notice">Esperando interacciones...</p>';
             }
             
-            // 2. Procesar Likes
+            // Actualizar Likes
             if (likersList) {
                 document.getElementById('count-likers').textContent = activeUsers.likers.length;
-                if (activeUsers.likers.length > 0) {
-                    likersList.innerHTML = activeUsers.likers.map(user => `<li>@${user}</li>`).join('');
-                } else {
-                    likersList.innerHTML = '<p class="empty-notice">Esperando interacciones...</p>';
-                }
+                likersList.innerHTML = activeUsers.likers.length > 0 
+                    ? activeUsers.likers.map(user => `<li>@${user}</li>`).join('')
+                    : '<p class="empty-notice">Esperando interacciones...</p>';
             }
 
-            // 3. Procesar Regalos
+            // Actualizar Regalos
             if (giftersList) {
                 document.getElementById('count-gifters').textContent = activeUsers.gifters.length;
-                if (activeUsers.gifters.length > 0) {
-                    giftersList.innerHTML = activeUsers.gifters.map(user => `<li>@${user}</li>`).join('');
-                } else {
-                    giftersList.innerHTML = '<p class="empty-notice">Esperando interacciones...</p>';
-                }
+                giftersList.innerHTML = activeUsers.gifters.length > 0 
+                    ? activeUsers.gifters.map(user => `<li>@${user}</li>`).join('')
+                    : '<p class="empty-notice">Esperando interacciones...</p>';
             }
         });
-    </script>

@@ -3,8 +3,6 @@ const http = require('http');
 const { Server } = require('socket.io');
 const fs = require('fs');
 const path = require('path');
-
-// 1. Importamos las herramientas correctas para la versión más reciente
 const { TikTokLiveConnection, WebcastEvent } = require('tiktok-live-connector');
 
 const app = express();
@@ -13,8 +11,11 @@ const server = http.createServer(app);
 const io = new Server(server, {
     cors: {
         origin: "*",
-        methods: ["GET", "POST"]
-    }
+        methods: ["GET", "POST"],
+        allowedHeaders: ["*"],
+        credentials: true
+    },
+    allowEIO3: true
 });
 
 app.use(express.static('public'));
@@ -35,7 +36,7 @@ function getAvailableSounds() {
 }
 
 io.on('connection', (socket) => {
-    console.log('Cliente conectado al panel web');
+    console.log('¡Dispositivo móvil conectado al panel web con éxito!');
     let tiktokConnection = null;
     let sessionTimeout = null;
 
@@ -47,7 +48,6 @@ io.on('connection', (socket) => {
         console.log(`Intentando conectar con TikTok LIVE: @${cleanUsername}`);
         
         try {
-            // 2. Colocamos la API Key directamente dentro de la configuración
             tiktokConnection = new TikTokLiveConnection(cleanUsername, {
                 signApiKey: "euler_NjFlOTE3NWRjZWQwZTg5ODY4ZjJhMTBiMTQwOTBmZjZhY2NjZmUyMzdjMzcxZDVjNDdlY2Nm",
                 enableWebsocketUpgrade: true,
@@ -69,7 +69,6 @@ io.on('connection', (socket) => {
                 socket.emit('connection-status', { status: 'disconnected', message: 'Error o streamer fuera de línea' });
             });
 
-            // 3. Actualizamos los eventos a WebcastEvent.ROOM_USER
             tiktokConnection.on(WebcastEvent.ROOM_USER, (data) => {
                 let username = null;
                 if (data.createUser && data.createUser.uniqueId) {
@@ -85,7 +84,6 @@ io.on('connection', (socket) => {
                 io.emit('play-alert', { type: 'follow', name: username || 'Usuario' });
             });
 
-            // 4. Actualizamos el evento a WebcastEvent.GIFT
             tiktokConnection.on(WebcastEvent.GIFT, (data) => {
                 if (data.giftType === 1 && !data.repeatEnd) return;
                 

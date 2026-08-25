@@ -49,7 +49,9 @@ io.on('connection', (socket) => {
                 console.log(`Conectado al Room ID: ${state.roomId}`);
                 // Corregido: Avisamos al socket emisor que se conectó exitosamente
                 socket.emit('connection-status', { status: 'connected', message: `Conectado a @${cleanUsername}` });
+                io.emit('update-interactions', activeUsers);
 
+                sessionTimeout = setTimeout(() => {
                 sessionTimeout = setTimeout(() => {
                     if (tiktokConnection) tiktokConnection.disconnect();
                     socket.emit('connection-status', { status: 'disconnected', message: 'Limite de tiempo' });

@@ -47,11 +47,13 @@ io.on('connection', (socket) => {
             
             tiktokConnection.connect().then(state => {
                 console.log(`Conectado al Room ID: ${state.roomId}`);
-                // Corregido: Avisamos al socket emisor que se conectó exitosamente
+                
+                // Confirmamos la conexión al frontend
                 socket.emit('connection-status', { status: 'connected', message: `Conectado a @${cleanUsername}` });
+                
+                // Sincronizamos el estado inicial del monitor para activar el panel
                 io.emit('update-interactions', activeUsers);
 
-                sessionTimeout = setTimeout(() => {
                 sessionTimeout = setTimeout(() => {
                     if (tiktokConnection) tiktokConnection.disconnect();
                     socket.emit('connection-status', { status: 'disconnected', message: 'Limite de tiempo' });
@@ -67,7 +69,7 @@ io.on('connection', (socket) => {
                 const username = data.uniqueId;
                 if (!activeUsers.followers.includes(username)) {
                     activeUsers.followers.push(username);
-                    io.emit('update-interactions', activeUsers); // Actualiza la lista en pantalla
+                    io.emit('update-interactions', activeUsers);
                 }
                 socket.emit('play-alert', { type: 'follow', name: username });
             });

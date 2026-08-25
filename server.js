@@ -1,8 +1,8 @@
-const express = require('express');
-const http = require('http');
-const { Server } = require('socket.io');
-const tiktokLive = require('tiktok-live-connector');
-const TikTokLiveConnection = tiktokLive.TikTokLiveConnection;
+import express = require('express');
+import http = require('http');
+import { Server } = require('socket.io');
+import tiktokLive = require('tiktok-live-connector');
+import TikTokLiveConnection = tiktokLive.TikTokLiveConnection;
 
 
 const app = express();

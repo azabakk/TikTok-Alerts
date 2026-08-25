@@ -196,29 +196,84 @@
             audio.play().catch(err => console.log("Bloqueo de audio:", err));
         }
     });
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const socket = io();
+        let alertSoundsConfig = { follow: '', like: '', gift: '' };
 
-    // 3. Renderizar las listas de usuarios y los contadores en tiempo real
-    socket.on('update-interactions', (activeUsers) => {
-        const followersList = document.getElementById('followers-container');
-        const likersList = document.getElementById('likers-container');
-        const giftersList = document.getElementById('gifters-container');
+        const connectBtn = document.getElementById('connect-btn');
+        const disconnectBtn = document.getElementById('disconnect-btn');
+        const usernameInput = document.getElementById('username-input');
+        const statusLabel = document.getElementById('status-label');
 
-        // Actualizar columna de Seguidores
-        if (followersList && activeUsers.followers.length > 0) {
-            document.getElementById('count-followers').textContent = activeUsers.followers.length;
-            followersList.innerHTML = activeUsers.followers.map(user => `<li>@${user}</li>`).join('');
-        }
-        
-        // Actualizar columna de Likes
-        if (likersList && activeUsers.likers.length > 0) {
-            document.getElementById('count-likers').textContent = activeUsers.likers.length;
-            likersList.innerHTML = activeUsers.likers.map(user => `<li>@${user}</li>`).join('');
-        }
+        connectBtn.addEventListener('click', () => {
+            const user = usernameInput.value;
+            if(user) {
+                statusLabel.textContent = "Estado: Intentando conectar...";
+                socket.emit('start-live', user);
+            }
+        });
 
-        // Actualizar columna de Regalos
-        if (giftersList && activeUsers.gifters.length > 0) {
-            document.getElementById('count-gifters').textContent = activeUsers.gifters.length;
-            giftersList.innerHTML = activeUsers.gifters.map(user => `<li>@${user}</li>`).join('');
-        }
-    });
-        
+        disconnectBtn.addEventListener('click', () => {
+            socket.emit('stop-live');
+        });
+
+        socket.on('connection-status', (data) => {
+            statusLabel.textContent = `Estado: ${data.message}`;
+            if(data.status === 'connected') {
+                connectBtn.style.display = 'none';
+                disconnectBtn.style.display = 'block';
+                usernameInput.disabled = true;
+            } else {
+                connectBtn.style.display = 'block';
+                disconnectBtn.style.display = 'none';
+                usernameInput.disabled = false;
+            }
+        });
+
+        socket.on('available-sounds', (soundsList) => {
+            const selectors = ['follow-sound-select', 'like-sound-select', 'gift-sound-select'];
+            selectors.forEach(id => {
+                const selectEl = document.getElementById(id);
+                if (!selectEl) return;
+                selectEl.innerHTML = '<option value="">Ninguno (Silencio)</option>';
+                soundsList.forEach(soundFile => {
+                    const option = document.createElement('option');
+                    option.value = soundFile;
+                    option.textContent = soundFile;
+                    selectEl.appendChild(option);
+                });
+                selectEl.addEventListener('change', (e) => {
+                    const type = id.split('-')[0]; // Extrae correctamente 'follow', 'like' o 'gift'
+                    alertSoundsConfig[type] = e.target.value;
+                });
+            });
+        });
+
+        socket.on('play-alert', (data) => {
+            const chosenSoundFile = alertSoundsConfig[data.type];
+            if (chosenSoundFile) {
+                const audio = new Audio(`/sounds/${chosenSoundFile}`);
+                audio.play().catch(err => console.log("Bloqueo de audio:", err));
+            }
+        });
+
+        socket.on('update-interactions', (activeUsers) => {
+            const followersList = document.getElementById('followers-container');
+            const likersList = document.getElementById('likers-container');
+            const giftersList = document.getElementById('gifters-container');
+
+            if(followersList && activeUsers.followers.length > 0) {
+                document.getElementById('count-followers').textContent = activeUsers.followers.length;
+                followersList.innerHTML = activeUsers.followers.map(user => `<li>@${user}</li>`).join('');
+            }
+            if(likersList && activeUsers.likers.length > 0) {
+                document.getElementById('count-likers').textContent = activeUsers.likers.length;
+                likersList.innerHTML = activeUsers.likers.map(user => `<li>@${user}</li>`).join('');
+            }
+            if(giftersList && activeUsers.gifters.length > 0) {
+                document.getElementById('count-gifters').textContent = activeUsers.gifters.length;
+                giftersList.innerHTML = activeUsers.gifters.map(user => `<li>@${user}</li>`).join('');
+            }
+        });
+    </script>

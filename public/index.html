@@ -213,6 +213,23 @@
                 socket.emit('start-live', user);
             }
         });
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const socket = io();
+        let alertSoundsConfig = { follow: '', like: '', gift: '' };
+
+        const connectBtn = document.getElementById('connect-btn');
+        const disconnectBtn = document.getElementById('disconnect-btn');
+        const usernameInput = document.getElementById('username-input');
+        const statusLabel = document.getElementById('status-label');
+
+        connectBtn.addEventListener('click', () => {
+            const user = usernameInput.value;
+            if(user) {
+                statusLabel.textContent = "Estado: Intentando conectar...";
+                socket.emit('start-live', user);
+            }
+        });
 
         disconnectBtn.addEventListener('click', () => {
             socket.emit('stop-live');
@@ -258,22 +275,40 @@
             }
         });
 
+        // REESTRUCTURADO: Renderizador dinámico de contadores y listas en tiempo real
         socket.on('update-interactions', (activeUsers) => {
             const followersList = document.getElementById('followers-container');
             const likersList = document.getElementById('likers-container');
             const giftersList = document.getElementById('gifters-container');
 
-            if(followersList && activeUsers.followers.length > 0) {
+            // 1. Procesar Seguidores
+            if (followersList) {
                 document.getElementById('count-followers').textContent = activeUsers.followers.length;
-                followersList.innerHTML = activeUsers.followers.map(user => `<li>@${user}</li>`).join('');
+                if (activeUsers.followers.length > 0) {
+                    followersList.innerHTML = activeUsers.followers.map(user => `<li>@${user}</li>`).join('');
+                } else {
+                    followersList.innerHTML = '<p class="empty-notice">Esperando interacciones...</p>';
+                }
             }
-            if(likersList && activeUsers.likers.length > 0) {
+            
+            // 2. Procesar Likes
+            if (likersList) {
                 document.getElementById('count-likers').textContent = activeUsers.likers.length;
-                likersList.innerHTML = activeUsers.likers.map(user => `<li>@${user}</li>`).join('');
+                if (activeUsers.likers.length > 0) {
+                    likersList.innerHTML = activeUsers.likers.map(user => `<li>@${user}</li>`).join('');
+                } else {
+                    likersList.innerHTML = '<p class="empty-notice">Esperando interacciones...</p>';
+                }
             }
-            if(giftersList && activeUsers.gifters.length > 0) {
+
+            // 3. Procesar Regalos
+            if (giftersList) {
                 document.getElementById('count-gifters').textContent = activeUsers.gifters.length;
-                giftersList.innerHTML = activeUsers.gifters.map(user => `<li>@${user}</li>`).join('');
+                if (activeUsers.gifters.length > 0) {
+                    giftersList.innerHTML = activeUsers.gifters.map(user => `<li>@${user}</li>`).join('');
+                } else {
+                    giftersList.innerHTML = '<p class="empty-notice">Esperando interacciones...</p>';
+                }
             }
         });
     </script>

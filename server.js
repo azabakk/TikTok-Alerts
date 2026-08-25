@@ -2,9 +2,13 @@ const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
 
-// Importamos el conector base. En las últimas versiones, el require 
-// devuelve directamente la clase principal de conexión.
-const TikTokLiveConnector = require('tiktok-live-connector');
+// Importación precisa para evitar problemas de compatibilidad interna en Node.js
+const tiktokLiveConnector = require('tiktok-live-connector');
+
+// Accedemos explícitamente a la clase correcta según el empaquetado del autor
+const TikTokLiveConnection = tiktokLiveConnector.TikTokLiveConnection || 
+                             tiktokLiveConnector.WebcastPushConnection || 
+                             tiktokLiveConnector;
 
 const app = express();
 const server = http.createServer(app);
@@ -24,12 +28,8 @@ io.on('connection', (socket) => {
         console.log(`Conectando con: @${cleanUsername}`);
         
         try {
-            // Evaluamos si viene como propiedad o directamente como el módulo
-            const ConnectionClass = TikTokLiveConnector.TikTokLiveConnection || 
-                                    TikTokLiveConnector.WebcastPushConnection || 
-                                    TikTokLiveConnector;
-
-            tiktokConnection = new ConnectionClass(cleanUsername);
+            // Pasamos un objeto vacío de opciones {} como segundo parámetro para evitar que intente leer valores indefinidos
+            tiktokConnection = new TikTokLiveConnection(cleanUsername, {});
             
             tiktokConnection.connect().then(state => {
                 console.log(`Conectado al Room ID: ${state.roomId}`);
@@ -45,9 +45,8 @@ io.on('connection', (socket) => {
                 socket.emit('connection-status', { status: 'disconnected', message: 'Error de conexion' });
             });
 
-            // Compatibilidad para eventos nuevos y antiguos
-            const memberEvent = tiktokConnection.on ? 'roomUser' : 'member';
-            tiktokConnection.on(memberEvent, (data) => {
+            // Usamos "roomUser" que es el evento estándar de la última versión
+            tiktokConnection.on('roomUser', (data) => {
                 socket.emit('play-alert', { type: 'follow', name: data.uniqueId });
             });
 

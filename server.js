@@ -7,13 +7,12 @@ const path = require('path');
 const { TikTokLiveConnection, SignConfig } = require('tiktok-live-connector');
 
 // CONFIGURACIÓN DEL SERVIDOR DE FIRMAS (EULER STREAM)
-// Coloca aquí tu API Key del plan gratuito de eulerstream.com
+// Coloca aquí tu API Key del plan gratuito de eulerstream.com para evitar bloqueos
 SignConfig.apiKey = "euler_NjFlOTE3NWRjZWQwZTg5ODY4ZjJhMTBiMTQwOTBmZjZhY2NjZmUyMzdjMzcxZDVjNDdlY2Nm"; 
 
 const app = express();
 const server = http.createServer(app);
 
-// CORRECCIÓN CLAVE: Permitimos conexiones Socket de cualquier origen para evitar bloqueos en Render
 const io = new Server(server, {
     cors: {
         origin: "*",
@@ -48,7 +47,7 @@ io.on('connection', (socket) => {
     socket.on('start-live', (tiktokUsername) => {
         if (!tiktokUsername) return;
         const cleanUsername = tiktokUsername.replace('@', '').trim();
-        console.log(`Intentando enlazar con TikTok LIVE: @${cleanUsername}`);
+        console.log(`Intentando conectar con TikTok LIVE: @${cleanUsername}`);
         
         try {
             tiktokConnection = new TikTokLiveConnection(cleanUsername, {
@@ -56,7 +55,7 @@ io.on('connection', (socket) => {
             });
             
             tiktokConnection.connect().then(state => {
-                console.log(`Conectado exitosamente al Room ID de TikTok: ${state.roomId}`);
+                console.log(`Conectado al Room ID de TikTok: ${state.roomId}`);
                 socket.emit('connection-status', { status: 'connected', message: `Conectado a @${cleanUsername}` });
                 io.emit('update-interactions', activeUsers);
 
@@ -67,10 +66,10 @@ io.on('connection', (socket) => {
 
             }).catch(err => {
                 console.error('Error al conectar con TikTok:', err.message);
-                socket.emit('connection-status', { status: 'disconnected', message: 'Error o el streamer no está en vivo' });
+                socket.emit('connection-status', { status: 'disconnected', message: 'Error o streamer fuera de línea' });
             });
 
-            // Monitor de Seguidores
+            // 1. Seguidores
             tiktokConnection.on('roomUser', (data) => {
                 let username = null;
                 if (data.createUser && data.createUser.uniqueId) {
@@ -86,7 +85,7 @@ io.on('connection', (socket) => {
                 io.emit('play-alert', { type: 'follow', name: username || 'Usuario' });
             });
 
-            // Monitor de Regalos
+            // 2. Regalos detallados
             tiktokConnection.on('gift', (data) => {
                 if (data.giftType === 1 && !data.repeatEnd) return;
                 
@@ -117,7 +116,7 @@ io.on('connection', (socket) => {
             });
 
         } catch (error) {
-            console.error('Error crítico en el conector:', error.message);
+            console.error('Error crítico:', error.message);
             socket.emit('connection-status', { status: 'disconnected', message: 'Error interno de inicialización' });
         }
     });

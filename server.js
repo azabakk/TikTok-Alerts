@@ -15,14 +15,12 @@ const io = new Server(server);
 
 app.use(express.static('public'));
 
-// Estructura para almacenar los usuarios activos de la sesión
 let activeUsers = {
     followers: [],
     likers: [],
     gifters: []
 };
 
-// Función para obtener la lista de sonidos mp3 automáticamente
 function getAvailableSounds() {
     const soundsDir = path.join(__dirname, 'public', 'sounds');
     if (!fs.existsSync(soundsDir)) return [];
@@ -34,7 +32,6 @@ io.on('connection', (socket) => {
     let tiktokConnection = null;
     let sessionTimeout = null;
 
-    // Enviamos el repositorio de sonidos al conectar la pestaña
     socket.emit('available-sounds', getAvailableSounds());
 
     socket.on('start-live', (tiktokUsername) => {
@@ -43,15 +40,16 @@ io.on('connection', (socket) => {
         console.log(`Conectando con: @${cleanUsername}`);
         
         try {
-            tiktokConnection = new TikTokLiveConnection(cleanUsername, {});
+            // Instanciamos pasándole opciones por defecto para evitar errores internos
+            tiktokConnection = new TikTokLiveConnection(cleanUsername, {
+                enableWebsocketUpgrade: true
+            });
             
             tiktokConnection.connect().then(state => {
                 console.log(`Conectado al Room ID: ${state.roomId}`);
                 
-                // Confirmamos la conexión al frontend
+                // IMPORTANTE: Sincronizamos tanto el estado como las cajas del monitor al iniciar
                 socket.emit('connection-status', { status: 'connected', message: `Conectado a @${cleanUsername}` });
-                
-                // Sincronizamos el estado inicial del monitor para activar el panel
                 io.emit('update-interactions', activeUsers);
 
                 sessionTimeout = setTimeout(() => {
@@ -61,30 +59,28 @@ io.on('connection', (socket) => {
 
             }).catch(err => {
                 console.error('Error al conectar:', err.message);
-                socket.emit('connection-status', { status: 'disconnected', message: 'Error de conexion o no esta en LIVE' });
+                socket.emit('connection-status', { status: 'disconnected', message: 'Error o el streamer no está en vivo' });
             });
 
-            // 1. Seguidores o entradas al live
+            // Captura de eventos del Live
             tiktokConnection.on('roomUser', (data) => {
                 const username = data.uniqueId;
                 if (!activeUsers.followers.includes(username)) {
                     activeUsers.followers.push(username);
                     io.emit('update-interactions', activeUsers);
                 }
-                socket.emit('play-alert', { type: 'follow', name: username });
+                io.emit('play-alert', { type: 'follow', name: username });
             });
 
-            // 2. Likes recibidos
             tiktokConnection.on('like', (data) => {
                 const username = data.uniqueId;
                 if (!activeUsers.likers.includes(username)) {
                     activeUsers.likers.push(username);
                     io.emit('update-interactions', activeUsers);
                 }
-                socket.emit('play-alert', { type: 'like', name: username });
+                io.emit('play-alert', { type: 'like', name: username });
             });
 
-            // 3. Regalos recibidos
             tiktokConnection.on('gift', (data) => {
                 if (data.giftType === 1 && !data.repeatEnd) return;
                 
@@ -100,7 +96,7 @@ io.on('connection', (socket) => {
                 else if (diamondCount >= 1000) tier = 'high';
                 else if (diamondCount >= 100) tier = 'medium';
                 
-                socket.emit('play-alert', { type: 'gift', name: username, giftName: data.giftName, tier: tier, diamonds: diamondCount });
+                io.emit('play-alert', { type: 'gift', name: username, giftName: data.giftName, tier: tier, diamonds: diamondCount });
             });
 
         } catch (error) {

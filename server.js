@@ -15,10 +15,10 @@ const io = new Server(server);
 
 app.use(express.static('public'));
 
+// Estructura simplificada sin likes
 let activeUsers = {
     followers: [],
-    likers: [],
-    gifters: []
+    gifters: [] // Aquí guardaremos objetos detallados: { username, giftName, diamonds }
 };
 
 function getAvailableSounds() {
@@ -46,7 +46,6 @@ io.on('connection', (socket) => {
             
             tiktokConnection.connect().then(state => {
                 console.log(`Conectado al Room ID: ${state.roomId}`);
-                
                 socket.emit('connection-status', { status: 'connected', message: `Conectado a @${cleanUsername}` });
                 io.emit('update-interactions', activeUsers);
 
@@ -60,7 +59,7 @@ io.on('connection', (socket) => {
                 socket.emit('connection-status', { status: 'disconnected', message: 'Error o el streamer no está en vivo' });
             });
 
-                                    // 1. Seguidores o entradas al live
+            // 1. Evento de Seguidores / Entradas
             tiktokConnection.on('roomUser', (data) => {
                 let username = null;
                 if (data.createUser && data.createUser.uniqueId) {
@@ -76,33 +75,23 @@ io.on('connection', (socket) => {
                 io.emit('play-alert', { type: 'follow', name: username || 'Usuario' });
             });
 
-            // 2. Likes recibidos (Optimizado para procesar likes masivos)
-            tiktokConnection.on('like', (data) => {
-                const username = data.uniqueId || 'Espectador';
-                
-                // Si el usuario no está registrado en el histórico, lo añadimos
-                if (!activeUsers.likers.includes(username)) {
-                    activeUsers.likers.push(username);
-                }
-                
-                // Sincronizamos las interacciones reflejando el incremento
-                io.emit('update-interactions', activeUsers);
-                io.emit('play-alert', { type: 'like', name: username });
-            });
-
-            // 3. Regalos recibidos (Optimizado para mapear cantidad exacta)
+            // 2. Evento de Regalos Detallado
             tiktokConnection.on('gift', (data) => {
-                // Validación para evitar procesar ráfagas incompletas
                 if (data.giftType === 1 && !data.repeatEnd) return;
                 
                 const username = data.uniqueId || 'Donador';
-                if (!activeUsers.gifters.includes(username)) {
-                    activeUsers.gifters.push(username);
-                }
+                const giftName = data.giftName || 'Regalo';
+                const diamondCount = data.diamondCount * (data.repeatCount || 1);
+                
+                // Guardamos el historial del regalo con sus detalles
+                activeUsers.gifters.push({
+                    username: username,
+                    giftName: giftName,
+                    diamonds: diamondCount
+                });
                 
                 io.emit('update-interactions', activeUsers);
 
-                const diamondCount = data.diamondCount * (data.repeatCount || 1);
                 let tier = 'low';
                 if (diamondCount >= 5000) tier = 'epic';
                 else if (diamondCount >= 1000) tier = 'high';
@@ -111,13 +100,12 @@ io.on('connection', (socket) => {
                 io.emit('play-alert', { 
                     type: 'gift', 
                     name: username, 
-                    giftName: data.giftName || 'Regalo', 
+                    giftName: giftName, 
                     tier: tier, 
                     diamonds: diamondCount 
                 });
             });
 
-            
         } catch (error) {
             console.error('Error critico:', error.message);
             socket.emit('connection-status', { status: 'disconnected', message: 'Error interno' });
@@ -128,7 +116,7 @@ io.on('connection', (socket) => {
         if (tiktokConnection) {
             try { tiktokConnection.disconnect(); } catch (e) {}
             clearTimeout(sessionTimeout);
-            activeUsers = { followers: [], likers: [], gifters: [] };
+            activeUsers = { followers: [], gifters: [] };
             io.emit('update-interactions', activeUsers);
             socket.emit('connection-status', { status: 'disconnected', message: 'Desconectado' });
         }

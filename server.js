@@ -1,11 +1,10 @@
-import express from 'express';
-import http from 'http';
-import { Server } from 'socket.io';
+const express = require('express');
+const http = require('http');
+const { Server } = require('socket.io');
 
-// Importamos el paquete completo
-import tiktokLivePkg from 'tiktok-live-connector';
-// Extraemos de forma segura el objeto de conexión correcto
-const { TikTokLiveConnection } = tiktokLivePkg;
+// Importamos el conector base. En las últimas versiones, el require 
+// devuelve directamente la clase principal de conexión.
+const TikTokLiveConnector = require('tiktok-live-connector');
 
 const app = express();
 const server = http.createServer(app);
@@ -25,8 +24,12 @@ io.on('connection', (socket) => {
         console.log(`Conectando con: @${cleanUsername}`);
         
         try {
-            // Instancia nativa compatible con ES Modules
-            tiktokConnection = new TikTokLiveConnection(cleanUsername);
+            // Evaluamos si viene como propiedad o directamente como el módulo
+            const ConnectionClass = TikTokLiveConnector.TikTokLiveConnection || 
+                                    TikTokLiveConnector.WebcastPushConnection || 
+                                    TikTokLiveConnector;
+
+            tiktokConnection = new ConnectionClass(cleanUsername);
             
             tiktokConnection.connect().then(state => {
                 console.log(`Conectado al Room ID: ${state.roomId}`);
@@ -42,7 +45,9 @@ io.on('connection', (socket) => {
                 socket.emit('connection-status', { status: 'disconnected', message: 'Error de conexion' });
             });
 
-            tiktokConnection.on('roomUser', (data) => {
+            // Compatibilidad para eventos nuevos y antiguos
+            const memberEvent = tiktokConnection.on ? 'roomUser' : 'member';
+            tiktokConnection.on(memberEvent, (data) => {
                 socket.emit('play-alert', { type: 'follow', name: data.uniqueId });
             });
 

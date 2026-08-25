@@ -111,13 +111,13 @@
 
     <script src="/socket.io/socket.io.js"></script>
     <script>
+            <script src="/socket.io/socket.io.js"></script>
+    <script>
         const socket = io("https://tiktok-alerts-qu11.onrender.com", {
-    transports: ['websocket', 'polling'],
-    secure: true,
-    rejectUnauthorized: false
-});
-
-        
+            transports: ['websocket', 'polling'],
+            secure: true,
+            rejectUnauthorized: false
+        });
         let alertSoundsConfig = { follow: '', gift: '' };
 
         const connectBtn = document.getElementById('connect-btn');

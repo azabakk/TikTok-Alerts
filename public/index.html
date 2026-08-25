@@ -80,6 +80,67 @@
             padding: 20px;
             border: 1px solid #2e2e35;
             box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+            margin-bottom: 20px;
+        }
+
+        .card:last-child {
+            margin-bottom: 0;
+        }
+
+        /* --- FORMULARIO DE CONEXIÓN --- */
+        .input-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+
+        input[type="text"] {
+            flex-grow: 1;
+            background-color: var(--bg-input);
+            color: var(--text-main);
+            border: 1px solid #3f3f46;
+            padding: 10px 14px;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            outline: none;
+        }
+
+        input[type="text"]:focus {
+            border-color: var(--accent-blue);
+        }
+
+        button {
+            padding: 10px 16px;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+            transition: background 0.2s;
+        }
+
+        .btn-connect {
+            background-color: var(--primary);
+            color: white;
+        }
+
+        .btn-connect:hover {
+            background-color: #e02447;
+        }
+
+        .btn-disconnect {
+            background-color: #3f3f46;
+            color: var(--text-main);
+        }
+
+        .btn-disconnect:hover {
+            background-color: #52525b;
+        }
+
+        .status-text {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            font-weight: 500;
         }
 
         /* --- PANEL DE CONFIGURACIÓN DE AUDIO --- */
@@ -125,7 +186,7 @@
 
         @media (min-width: 550px) {
             .monitor-grid {
-                grid-template-columns: repeat(3, 1fr); /* 3 Columnas: Seguidores, Likes, Regalos */
+                grid-template-columns: repeat(3, 1fr);
             }
         }
 
@@ -135,7 +196,7 @@
             padding: 15px;
             display: flex;
             flex-direction: column;
-            height: 450px;
+            height: 590px; /* Ajustado para alinearse con los dos paneles de la izquierda */
         }
 
         .column-header {
@@ -150,7 +211,6 @@
             justify-content: space-between;
         }
 
-        /* Colores dinámicos para identificar las columnas */
         .col-followers .column-header { color: var(--accent-blue); }
         .col-likers .column-header { color: var(--green); }
         .col-gifters .column-header { color: var(--yellow); }
@@ -162,14 +222,8 @@
             padding-right: 4px;
         }
 
-        /* Personalización de la barra de scroll integrada */
-        .user-list::-webkit-scrollbar {
-            width: 4px;
-        }
-        .user-list::-webkit-scrollbar-thumb {
-            background-color: #3f3f46;
-            border-radius: 4px;
-        }
+        .user-list::-webkit-scrollbar { width: 4px; }
+        .user-list::-webkit-scrollbar-thumb { background-color: #3f3f46; border-radius: 4px; }
 
         .user-list li {
             background-color: rgba(255, 255, 255, 0.03);
@@ -184,7 +238,6 @@
             border-left: 3px solid transparent;
         }
 
-        /* Efecto de borde por tipo de lista */
         .col-followers .user-list li { border-left-color: var(--accent-blue); }
         .col-likers .user-list li { border-left-color: var(--green); }
         .col-gifters .user-list li { border-left-color: var(--yellow); }
@@ -209,84 +262,69 @@
 
     <div class="container">
         
-        <!-- SECCIÓN 1: CONFIGURACIÓN DE AUDIO (PANEL IZQUIERDO) -->
-        <div class="card">
-            <h2>⚙️ Repositorio de Sonidos</h2>
-            <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 20px;">
-                Asigna un archivo de audio de tu servidor para cada interacción recibida en TikTok.
-            </p>
-            
-            <div class="sound-setting-group">
-                <label for="follow-sound-select">Alerta de Nuevos Seguidores</label>
-                <select id="follow-sound-select">
-                    <option value="">Cargando sonidos...</option>
-                </select>
+        <!-- COLUMNA IZQUIERDA -->
+        <div>
+            <!-- CONEXIÓN A TIKTOK -->
+            <div class="card">
+                <h2>🔗 Conectar Transmisión</h2>
+                <div class="input-group">
+                    <input type="text" id="username-input" placeholder="Ej: @username_tiktok">
+                    <button class="btn-connect" id="connect-btn">Conectar</button>
+                    <button class="btn-disconnect" id="disconnect-btn" style="display:none;">Salir</button>
+                </div>
+                <div class="status-text" id="status-label">Estado: Desconectado</div>
             </div>
 
-            <div class="sound-setting-group">
-                <label for="like-sound-select">Alerta de Likes</label>
-                <select id="like-sound-select">
-                    <option value="">Cargando sonidos...</option>
-                </select>
-            </div>
+            <!-- REPOSITORIO DE SONIDOS -->
+            <div class="card">
+                <h2>⚙️ Repositorio de Sonidos</h2>
+                <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 15px;">
+                    Asigna un audio para cada interacción en TikTok.
+                </p>
+                
+                <div class="sound-setting-group">
+                    <label for="follow-sound-select">Nuevos Seguidores</label>
+                    <select id="follow-sound-select">
+                        <option value="">Cargando sonidos...</option>
+                    </select>
+                </div>
 
-            <div class="sound-setting-group">
-                <label for="gift-sound-select">Alerta de Regalos</label>
-                <select id="gift-sound-select">
-                    <option value="">Cargando sonidos...</option>
-                </select>
+                <div class="sound-setting-group">
+                    <label for="like-sound-select">Alerta de Likes</label>
+                    <select id="like-sound-select">
+                        <option value="">Cargando sonidos...</option>
+                    </select>
+                </div>
+
+                <div class="sound-setting-group">
+                    <label for="gift-sound-select">Alerta de Regalos</label>
+                    <select id="gift-sound-select">
+                        <option value="">Cargando sonidos...</option>
+                    </select>
+                </div>
             </div>
         </div>
 
-        <!-- SECCIÓN 2: MONITOR DE INTERACCIONES EN TIEMPO REAL (PANEL DERECHO) -->
+        <!-- COLUMNA DERECHA: MONITOR -->
         <div class="card">
             <h2>📊 Monitor de Actividad</h2>
-            
             <div class="monitor-grid">
                 
-                <!-- Columna Seguidores -->
+                <!-- Seguidores -->
                 <div class="monitor-column col-followers">
                     <div class="column-header">
                         <span>Seguidores</span>
                         <span id="count-followers">0</span>
                     </div>
                     <ul class="user-list" id="followers-container">
-                        <p class="empty-notice" id="empty-follow">Esperando interacciones...</p>
+                        <p class="empty-notice">Esperando interacciones...</p>
                     </ul>
                 </div>
 
-                <!-- Columna Likes -->
+                <!-- Likes -->
                 <div class="monitor-column col-likers">
                     <div class="column-header">
                         <span>Likes</span>
                         <span id="count-likers">0</span>
                     </div>
-                    <ul class="user-list" id="likers-container">
-                        <p class="empty-notice" id="empty-like">Esperando interacciones...</p>
-                    </ul>
-                </div>
-
-                <!-- Columna Regalos -->
-                <div class="monitor-column col-gifters">
-                    <div class="column-header">
-                        <span>Regalos</span>
-                        <span id="count-gifters">0</span>
-                    </div>
-                    <ul class="user-list" id="gifters-container">
-                        <p class="empty-notice" id="empty-gift">Esperando interacciones...</p>
-                    </ul>
-                </div>
-
-            </div>
-        </div>
-
-    </div>
-
-    <!-- Cargar Socket.io y tu lógica javascript de control cliente abajo -->
-    <script src="/socket.io/socket.io.js"></script>
-    <script>
-        // Aquí puedes pegar el código JS del cliente que te compartí en el mensaje anterior
-        // El script se acoplará perfectamente con los IDs de este HTML.
-    </script>
-</body>
-</html>
+                    

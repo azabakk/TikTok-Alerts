@@ -4,11 +4,8 @@ const { Server } = require('socket.io');
 const fs = require('fs');
 const path = require('path');
 
-const { TikTokLiveConnection, SignConfig } = require('tiktok-live-connector');
-
-// CONFIGURACIÓN DEL SERVIDOR DE FIRMAS (EULER STREAM)
-// Coloca aquí tu API Key del plan gratuito de eulerstream.com para evitar bloqueos
-SignConfig.apiKey = "euler_NjFlOTE3NWRjZWQwZTg5ODY4ZjJhMTBiMTQwOTBmZjZhY2NjZmUyMzdjMzcxZDVjNDdlY2Nm"; 
+// 1. Importamos las herramientas correctas para la versión más reciente
+const { TikTokLiveConnection, WebcastEvent } = require('tiktok-live-connector');
 
 const app = express();
 const server = http.createServer(app);
@@ -50,8 +47,11 @@ io.on('connection', (socket) => {
         console.log(`Intentando conectar con TikTok LIVE: @${cleanUsername}`);
         
         try {
+            // 2. Colocamos la API Key directamente dentro de la configuración
             tiktokConnection = new TikTokLiveConnection(cleanUsername, {
-                enableWebsocketUpgrade: true
+                signApiKey: "euler_NjFlOTE3NWRjZWQwZTg5ODY4ZjJhMTBiMTQwOTBmZjZhY2NjZmUyMzdjMzcxZDVjNDdlY2Nm",
+                enableWebsocketUpgrade: true,
+                enableExtendedGiftInfo: true
             });
             
             tiktokConnection.connect().then(state => {
@@ -69,8 +69,8 @@ io.on('connection', (socket) => {
                 socket.emit('connection-status', { status: 'disconnected', message: 'Error o streamer fuera de línea' });
             });
 
-            // 1. Seguidores
-            tiktokConnection.on('roomUser', (data) => {
+            // 3. Actualizamos los eventos a WebcastEvent.ROOM_USER
+            tiktokConnection.on(WebcastEvent.ROOM_USER, (data) => {
                 let username = null;
                 if (data.createUser && data.createUser.uniqueId) {
                     username = data.createUser.uniqueId;
@@ -85,8 +85,8 @@ io.on('connection', (socket) => {
                 io.emit('play-alert', { type: 'follow', name: username || 'Usuario' });
             });
 
-            // 2. Regalos detallados
-            tiktokConnection.on('gift', (data) => {
+            // 4. Actualizamos el evento a WebcastEvent.GIFT
+            tiktokConnection.on(WebcastEvent.GIFT, (data) => {
                 if (data.giftType === 1 && !data.repeatEnd) return;
                 
                 const username = data.uniqueId || 'Donador';

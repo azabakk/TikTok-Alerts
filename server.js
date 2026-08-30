@@ -3,7 +3,7 @@ const http = require('http');
 const { Server } = require('socket.io');
 const fs = require('fs');
 const path = require('path');
-const { WebcastPushConnection } = require('tiktok-live-connector');
+const { TikTokLiveConnection } = require('tiktok-live-connector');
 
 const app = express();
 const server = http.createServer(app);
@@ -37,10 +37,11 @@ io.on('connection', (socket) => {
         const cleanUsername = tiktokUsername.replace('@', '').trim();
         
         try {
-            // Conexión pura, sin opciones extras que causen conflictos de versión
-            tiktokConnection = new WebcastPushConnection(cleanUsername);
+            // Usamos el constructor actualizado para la versión 2.0+
+            tiktokConnection = new TikTokLiveConnection(cleanUsername);
             
             tiktokConnection.connect().then(state => {
+                console.log(`Conectado exitosamente al live de @${cleanUsername}`);
                 socket.emit('connection-status', { status: 'connected', message: `Conectado a @${cleanUsername}` });
                 io.emit('update-interactions', activeUsers);
 
@@ -50,8 +51,9 @@ io.on('connection', (socket) => {
                 }, 21600000); 
 
             }).catch(err => {
-                // Si TikTok rechaza la conexión (ej. usuario desconectado)
-                socket.emit('connection-status', { status: 'disconnected', message: `TikTok rechazó: ${err.message}` });
+                // Registramos el error en Render y lo enviamos al celular
+                console.error(`TikTok rechazó la conexión a @${cleanUsername}:`, err.message);
+                socket.emit('connection-status', { status: 'disconnected', message: `Rechazado: ${err.message}` });
             });
 
             tiktokConnection.on('member', (data) => {
@@ -78,7 +80,7 @@ io.on('connection', (socket) => {
             });
 
         } catch (error) {
-            // Si la librería falla al intentar inicializarse, enviamos el error REAL a tu celular
+            console.error("Fallo interno de la librería:", error.message);
             socket.emit('connection-status', { status: 'disconnected', message: `Fallo interno: ${error.message}` });
         }
     });
@@ -90,6 +92,7 @@ io.on('connection', (socket) => {
             activeUsers = { followers: [], gifters: [] };
             io.emit('update-interactions', activeUsers);
             socket.emit('connection-status', { status: 'disconnected', message: 'Desconectado' });
+            console.log("Desconexión manual solicitada por el usuario.");
         }
     });
 

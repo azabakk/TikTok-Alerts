@@ -9,21 +9,14 @@ const app = express();
 const server = http.createServer(app);
 
 const io = new Server(server, {
-    cors: {
-        origin: "*",
-        methods: ["GET", "POST"],
-        allowedHeaders: ["*"],
-        credentials: true
-    },
+    cors: { origin: "*", methods: ["GET", "POST"], credentials: true },
     allowEIO3: true
 });
 
 app.use(express.static('public'));
 
-let activeUsers = {
-    followers: [],
-    gifters: []
-};
+let activeUsers = { followers: [], gifters: [] };
+let sessionTimeout = null;
 
 function getAvailableSounds() {
     try {
@@ -36,24 +29,18 @@ function getAvailableSounds() {
 }
 
 io.on('connection', (socket) => {
-    console.log('¡Dispositivo móvil conectado al panel web con éxito!');
     let tiktokConnection = null;
-    let sessionTimeout = null;
-
     socket.emit('available-sounds', getAvailableSounds());
 
     socket.on('start-live', (tiktokUsername) => {
         if (!tiktokUsername) return;
         const cleanUsername = tiktokUsername.replace('@', '').trim();
-        console.log(`Intentando conectar con TikTok LIVE: @${cleanUsername}`);
         
         try {
-            tiktokConnection = new WebcastPushConnection(cleanUsername, {
-                enableExtendedGiftInfo: true
-            });
+            // Conexión pura, sin opciones extras que causen conflictos de versión
+            tiktokConnection = new WebcastPushConnection(cleanUsername);
             
             tiktokConnection.connect().then(state => {
-                console.log(`Conectado al Room ID de TikTok: ${state.roomId}`);
                 socket.emit('connection-status', { status: 'connected', message: `Conectado a @${cleanUsername}` });
                 io.emit('update-interactions', activeUsers);
 
@@ -63,8 +50,8 @@ io.on('connection', (socket) => {
                 }, 21600000); 
 
             }).catch(err => {
-                console.error('Error al conectar con TikTok:', err.message);
-                socket.emit('connection-status', { status: 'disconnected', message: 'Error o streamer fuera de línea' });
+                // Si TikTok rechaza la conexión (ej. usuario desconectado)
+                socket.emit('connection-status', { status: 'disconnected', message: `TikTok rechazó: ${err.message}` });
             });
 
             tiktokConnection.on('member', (data) => {
@@ -83,31 +70,16 @@ io.on('connection', (socket) => {
                 const giftName = data.giftName || 'Regalo';
                 const diamondCount = data.diamondCount * (data.repeatCount || 1);
                 
-                activeUsers.gifters.push({
-                    username: username,
-                    giftName: giftName,
-                    diamonds: diamondCount
-                });
-                
+                activeUsers.gifters.push({ username, giftName, diamonds: diamondCount });
                 io.emit('update-interactions', activeUsers);
 
-                let tier = 'low';
-                if (diamondCount >= 5000) tier = 'epic';
-                else if (diamondCount >= 1000) tier = 'high';
-                else if (diamondCount >= 100) tier = 'medium';
-                
-                io.emit('play-alert', { 
-                    type: 'gift', 
-                    name: username, 
-                    giftName: giftName, 
-                    tier: tier, 
-                    diamonds: diamondCount 
-                });
+                let tier = diamondCount >= 5000 ? 'epic' : diamondCount >= 1000 ? 'high' : diamondCount >= 100 ? 'medium' : 'low';
+                io.emit('play-alert', { type: 'gift', name: username, giftName, tier, diamonds: diamondCount });
             });
 
         } catch (error) {
-            console.error('Error crítico:', error.message);
-            socket.emit('connection-status', { status: 'disconnected', message: 'Error interno de inicialización' });
+            // Si la librería falla al intentar inicializarse, enviamos el error REAL a tu celular
+            socket.emit('connection-status', { status: 'disconnected', message: `Fallo interno: ${error.message}` });
         }
     });
 
@@ -125,11 +97,8 @@ io.on('connection', (socket) => {
         if (tiktokConnection) {
             try { tiktokConnection.disconnect(); } catch (e) {}
         }
-        clearTimeout(sessionTimeout);
     });
 });
 
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => {
-    console.log(`Servidor en puerto ${PORT}`);
-});
+server.listen(PORT, () => console.log(`Servidor en puerto ${PORT}`));

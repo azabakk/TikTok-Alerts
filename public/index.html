@@ -179,28 +179,113 @@
                 audio.play().catch(err => console.log("Bloqueo de audio:", err));
             }
         });
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        // Al dejar los paréntesis vacíos, Socket.io detecta la red de forma automática y segura
+        const socket = io(); 
+        
+        let alertSoundsConfig = { follow: '', gift: '' };
+
+        const connectBtn = document.getElementById('connect-btn');
+        const disconnectBtn = document.getElementById('disconnect-btn');
+        const usernameInput = document.getElementById('username-input');
+        const statusLabel = document.getElementById('status-label');
+
+        // ==== DIAGNÓSTICO EN PANTALLA ====
+        statusLabel.textContent = "Estado: Buscando servidor...";
+        
+        socket.on('connect', () => {
+            statusLabel.textContent = "Estado: Servidor enlazado (Listo)";
+            statusLabel.style.color = "#25f4ee"; // Azul brillante si funciona
+        });
+
+        socket.on('connect_error', (err) => {
+            statusLabel.textContent = "Error de red: " + err.message;
+            statusLabel.style.color = "#fe2c55"; // Rojo si el celular bloquea la red
+        });
+        // =======================================
+
+        connectBtn.addEventListener('click', () => {
+            const user = usernameInput.value;
+            if(user) {
+                statusLabel.textContent = "Estado: Intentando conectar...";
+                statusLabel.style.color = "#f3f4f6";
+                socket.emit('start-live', user);
+            }
+        });
+
+        disconnectBtn.addEventListener('click', () => {
+            socket.emit('stop-live');
+        });
+
+        socket.on('connection-status', (data) => {
+            statusLabel.textContent = `Estado: ${data.message}`;
+            if(data.status === 'connected') {
+                connectBtn.style.display = 'none';
+                disconnectBtn.style.display = 'block';
+                usernameInput.disabled = true;
+                statusLabel.style.color = "#25f4ee";
+            } else {
+                connectBtn.style.display = 'block';
+                disconnectBtn.style.display = 'none';
+                usernameInput.disabled = false;
+                statusLabel.style.color = "#fe2c55";
+            }
+        });
+
+        socket.on('available-sounds', (soundsList) => {
+            const selectors = ['follow-sound-select', 'gift-sound-select'];
+            selectors.forEach(id => {
+                const selectEl = document.getElementById(id);
+                if (!selectEl) return;
+                
+                selectEl.innerHTML = '<option value="">Ninguno (Silencio)</option>';
+                if(soundsList && soundsList.length > 0) {
+                    soundsList.forEach(soundFile => {
+                        const option = document.createElement('option');
+                        option.value = soundFile;
+                        option.textContent = soundFile;
+                        selectEl.appendChild(option);
+                    });
+                }
+                selectEl.addEventListener('change', (e) => {
+                    const type = id.split('-'); 
+                    alertSoundsConfig[type[0]] = e.target.value;
+                });
+            });
+        });
+
+        socket.on('play-alert', (data) => {
+            const chosenSoundFile = alertSoundsConfig[data.type];
+            if (chosenSoundFile) {
+                const audio = new Audio(`/sounds/${chosenSoundFile}`);
+                audio.play().catch(err => console.log("Bloqueo de audio:", err));
+            }
+        });
 
         socket.on('update-interactions', (activeUsers) => {
             const followersList = document.getElementById('followers-container');
             const giftersList = document.getElementById('gifters-container');
-                    if (followersList) {
-            document.getElementById('count-followers').textContent = activeUsers.followers.length;
-            followersList.innerHTML = activeUsers.followers.length > 0
-                ? activeUsers.followers.map(user => `<li>@${user}</li>`).join('')
-                : '<p class="empty-notice">Esperando seguidores...</p>';
-        }
+            if (followersList) {
+                document.getElementById('count-followers').textContent = activeUsers.followers.length;
+                followersList.innerHTML = activeUsers.followers.length > 0
+                    ? activeUsers.followers.map(user => `<li>@${user}</li>`).join('')
+                    : '<p class="empty-notice">Esperando seguidores...</p>';
+            }
 
-        if (giftersList) {
-            document.getElementById('count-gifters').textContent = activeUsers.gifters.length;
-            giftersList.innerHTML = activeUsers.gifters.length > 0
-                ? activeUsers.gifters.map(giftObj => `
-                    <li>
-                        <span>@${giftObj.username}</span>
-                        <span class="gift-info">${giftObj.giftName} (${giftObj.diamonds}💎)</span>
-                    </li>
-                `).join('')
-                : '<p class="empty-notice">Esperando regalos...</p>';
-        }
-    });
-                                          
+            if (giftersList) {
+                document.getElementById('count-gifters').textContent = activeUsers.gifters.length;
+                giftersList.innerHTML = activeUsers.gifters.length > 0
+                    ? activeUsers.gifters.map(giftObj => `
+                        <li>
+                            <span>@${giftObj.username}</span>
+                            <span class="gift-info">${giftObj.giftName} (${giftObj.diamonds}💎)</span>
+                        </li>
+                    `).join('')
+                    : '<p class="empty-notice">Esperando regalos...</p>';
+            }
+        });
+    </script>
+</body>
+</html>
 

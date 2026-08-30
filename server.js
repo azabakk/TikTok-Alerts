@@ -3,7 +3,7 @@ const http = require('http');
 const { Server } = require('socket.io');
 const fs = require('fs');
 const path = require('path');
-const { TikTokLiveConnection, WebcastEvent } = require('tiktok-live-connector');
+const { WebcastPushConnection } = require('tiktok-live-connector');
 
 const app = express();
 const server = http.createServer(app);
@@ -48,9 +48,7 @@ io.on('connection', (socket) => {
         console.log(`Intentando conectar con TikTok LIVE: @${cleanUsername}`);
         
         try {
-            tiktokConnection = new TikTokLiveConnection(cleanUsername, {
-                signApiKey: "euler_NjFlOTE3NWRjZWQwZTg5ODY4ZjJhMTBiMTQwOTBmZjZhY2NjZmUyMzdjMzcxZDVjNDdlY2Nm",
-                enableWebsocketUpgrade: true,
+            tiktokConnection = new WebcastPushConnection(cleanUsername, {
                 enableExtendedGiftInfo: true
             });
             
@@ -69,14 +67,8 @@ io.on('connection', (socket) => {
                 socket.emit('connection-status', { status: 'disconnected', message: 'Error o streamer fuera de línea' });
             });
 
-            tiktokConnection.on(WebcastEvent.ROOM_USER, (data) => {
-                let username = null;
-                if (data.createUser && data.createUser.uniqueId) {
-                    username = data.createUser.uniqueId;
-                } else if (data.uniqueId) {
-                    username = data.uniqueId;
-                }
-
+            tiktokConnection.on('member', (data) => {
+                let username = data.uniqueId;
                 if (username && !activeUsers.followers.includes(username)) {
                     activeUsers.followers.push(username);
                     io.emit('update-interactions', activeUsers);
@@ -84,7 +76,7 @@ io.on('connection', (socket) => {
                 io.emit('play-alert', { type: 'follow', name: username || 'Usuario' });
             });
 
-            tiktokConnection.on(WebcastEvent.GIFT, (data) => {
+            tiktokConnection.on('gift', (data) => {
                 if (data.giftType === 1 && !data.repeatEnd) return;
                 
                 const username = data.uniqueId || 'Donador';

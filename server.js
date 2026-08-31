@@ -66,24 +66,18 @@ io.on('connection', (socket) => {
             });
 
             // GESTIÓN BLINDADA DE REGALOS
-            tiktokConnection.on('gift', (data) => {
-                if (data.giftType === 1 && !data.repeatEnd) return;
-                
-                // Buscamos el usuario en varias propiedades posibles que usa TikTok
-                const username = data.uniqueId || data.nickname || (data.user && data.user.uniqueId) || 'Donador';
-                
-                // Buscamos el nombre del regalo de forma segura
-                const giftName = data.giftName || (data.gift && data.gift.name) || 'Regalo';
-                
-                // Calculamos los diamantes asegurando que no queden en cero
-                const diamondCount = (data.diamondCount || 1) * (data.repeatCount || 1);
-                
-                activeUsers.gifters.push({ username, giftName, diamonds: diamondCount });
-                io.emit('update-interactions', activeUsers);
+            connection.on('gift', (data) => {
+    // Asegúrate de extraer el usuario de data.user
+    const username = data.user?.uniqueId || data.uniqueId || 'Anónimo';
+    const nickname = data.user?.nickname || data.nickname || 'Sin nombre';
+    const giftName = data.giftName || data.extendedGiftInfo?.name || 'Regalo';
+    const repeatCount = data.repeatCount || 1;
 
-                let tier = diamondCount >= 5000 ? 'epic' : diamondCount >= 1000 ? 'high' : diamondCount >= 100 ? 'medium' : 'low';
-                io.emit('play-alert', { type: 'gift', name: username, giftName, tier, diamonds: diamondCount });
-            });
+    console.log(`🎁 ${username} (${nickname}) envió ${giftName} x${repeatCount}`);
+
+    // Envía estos datos correctamente a tu frontend por WebSocket
+});
+
 
         } catch (error) {
             console.error("Fallo interno de la librería:", error.message);

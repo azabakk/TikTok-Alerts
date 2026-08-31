@@ -37,7 +37,6 @@ io.on('connection', (socket) => {
         const cleanUsername = tiktokUsername.replace('@', '').trim();
         
         try {
-            // SOLUCIÓN: Pasar el objeto de opciones para evitar el fallo de "undefined"
             tiktokConnection = new TikTokLiveConnection(cleanUsername, { 
                 processInitialData: false 
             });
@@ -58,7 +57,7 @@ io.on('connection', (socket) => {
             });
 
             tiktokConnection.on('member', (data) => {
-                let username = data.uniqueId;
+                let username = data.uniqueId || data.nickname;
                 if (username && !activeUsers.followers.includes(username)) {
                     activeUsers.followers.push(username);
                     io.emit('update-interactions', activeUsers);
@@ -66,12 +65,18 @@ io.on('connection', (socket) => {
                 io.emit('play-alert', { type: 'follow', name: username || 'Usuario' });
             });
 
+            // GESTIÓN BLINDADA DE REGALOS
             tiktokConnection.on('gift', (data) => {
                 if (data.giftType === 1 && !data.repeatEnd) return;
                 
-                const username = data.uniqueId || 'Donador';
-                const giftName = data.giftName || 'Regalo';
-                const diamondCount = data.diamondCount * (data.repeatCount || 1);
+                // Buscamos el usuario en varias propiedades posibles que usa TikTok
+                const username = data.uniqueId || data.nickname || (data.user && data.user.uniqueId) || 'Donador';
+                
+                // Buscamos el nombre del regalo de forma segura
+                const giftName = data.giftName || (data.gift && data.gift.name) || 'Regalo';
+                
+                // Calculamos los diamantes asegurando que no queden en cero
+                const diamondCount = (data.diamondCount || 1) * (data.repeatCount || 1);
                 
                 activeUsers.gifters.push({ username, giftName, diamonds: diamondCount });
                 io.emit('update-interactions', activeUsers);

@@ -37,13 +37,14 @@ io.on('connection', (socket) => {
         const cleanUsername = tiktokUsername.replace('@', '').trim();
         
         try {
+            // Inicialización estable
             tiktokConnection = new TikTokLiveConnection(cleanUsername, { 
                 processInitialData: false 
             });
             
             tiktokConnection.connect().then(state => {
                 console.log(`Conectado exitosamente al live de @${cleanUsername}`);
-                socket.emit('connection-status', { status: 'connected', message: `Conectado a @${cleanUsername}` });
+                socket.emit('connection-status', { status: 'connected', message: `Conectado al live de @${cleanUsername}` });
                 io.emit('update-interactions', activeUsers);
 
                 sessionTimeout = setTimeout(() => {
@@ -56,8 +57,9 @@ io.on('connection', (socket) => {
                 socket.emit('connection-status', { status: 'disconnected', message: `Rechazado: ${err.message}` });
             });
 
+            // Evento cuando un usuario entra a la sala
             tiktokConnection.on('member', (data) => {
-                let username = data.uniqueId || data.nickname;
+                const username = data.uniqueId || data.nickname || (data.user && data.user.uniqueId) || (data.user && data.user.nickname);
                 if (username && !activeUsers.followers.includes(username)) {
                     activeUsers.followers.push(username);
                     io.emit('update-interactions', activeUsers);
@@ -65,19 +67,30 @@ io.on('connection', (socket) => {
                 io.emit('play-alert', { type: 'follow', name: username || 'Usuario' });
             });
 
-            // GESTIÓN BLINDADA DE REGALOS
-            connection.on('gift', (data) => {
-    // Asegúrate de extraer el usuario de data.user
-    const username = data.user?.uniqueId || data.uniqueId || 'Anónimo';
-    const nickname = data.user?.nickname || data.nickname || 'Sin nombre';
-    const giftName = data.giftName || data.extendedGiftInfo?.name || 'Regalo';
-    const repeatCount = data.repeatCount || 1;
+            // Evento cuando alguien sigue la cuenta
+            tiktokConnection.on('follow', (data) => {
+                const username = data.uniqueId || data.nickname || (data.user && data.user.uniqueId) || (data.user && data.user.nickname);
+                if (username && !activeUsers.followers.includes(username)) {
+                    activeUsers.followers.push(username);
+                    io.emit('update-interactions', activeUsers);
+                }
+                io.emit('play-alert', { type: 'follow', name: username || 'Nuevo Seguidor' });
+            });
 
-    console.log(`🎁 ${username} (${nickname}) envió ${giftName} x${repeatCount}`);
+            // Evento cuando envían un regalo (Blindado para capturar nombres reales)
+            tiktokConnection.on('gift', (data) => {
+                if (data.giftType === 1 && !data.repeatEnd) return;
+                
+                const username = data.uniqueId || data.nickname || (data.user && data.user.uniqueId) || (data.user && data.user.nickname) || 'Donador';
+                const giftName = data.giftName || (data.gift && data.gift.name) || 'Regalo';
+                const diamondCount = (data.diamondCount || 1) * (data.repeatCount || 1);
+                
+                activeUsers.gifters.push({ username, giftName, diamonds: diamondCount });
+                io.emit('update-interactions', activeUsers);
 
-    // Envía estos datos correctamente a tu frontend por WebSocket
-});
-
+                let tier = diamondCount >= 5000 ? 'epic' : diamondCount >= 1000 ? 'high' : diamondCount >= 100 ? 'medium' : 'low';
+                io.emit('play-alert', { type: 'gift', name: username, giftName, tier, diamonds: diamondCount });
+            });
 
         } catch (error) {
             console.error("Fallo interno de la librería:", error.message);

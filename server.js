@@ -37,8 +37,10 @@ io.on('connection', (socket) => {
         const cleanUsername = tiktokUsername.replace('@', '').trim();
         
         try {
-            // Usamos el constructor actualizado para la versión 2.0+
-            tiktokConnection = new TikTokLiveConnection(cleanUsername);
+            // SOLUCIÓN: Pasar el objeto de opciones para evitar el fallo de "undefined"
+            tiktokConnection = new TikTokLiveConnection(cleanUsername, { 
+                processInitialData: false 
+            });
             
             tiktokConnection.connect().then(state => {
                 console.log(`Conectado exitosamente al live de @${cleanUsername}`);
@@ -51,7 +53,6 @@ io.on('connection', (socket) => {
                 }, 21600000); 
 
             }).catch(err => {
-                // Registramos el error en Render y lo enviamos al celular
                 console.error(`TikTok rechazó la conexión a @${cleanUsername}:`, err.message);
                 socket.emit('connection-status', { status: 'disconnected', message: `Rechazado: ${err.message}` });
             });

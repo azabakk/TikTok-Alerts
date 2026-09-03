@@ -4,21 +4,16 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>StreamAlerts LIVE</title>
-    <link rel="manifest" href="/manifest.json">
-    <meta name="theme-color" content="#1a1c23">
     <style>
-        body { background-color: #0f1117; color: #f3f4f6; font-family: sans-serif; padding: 15px; margin: 0; }
+        body { background-color: #0f1117; color: #f3f4f6; font-family: sans-serif; padding: 20px; }
         .card { background: #1a1c23; padding: 15px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #2d3139; }
-        input, select, button { width: 100%; padding: 10px; margin-top: 5px; background: #2d3139; color: white; border: none; border-radius: 4px; box-sizing: border-box; }
+        input, select, button { width: 100%; padding: 10px; margin-top: 5px; background: #2d3139; color: white; border: none; border-radius: 4px; }
         button { background: #fe2c55; font-weight: bold; cursor: pointer; }
         #disconnect-btn { background: #374151; display: none; }
-        .monitor { display: flex; gap: 10px; flex-direction: column; }
-        @media(min-width: 600px) { .monitor { flex-direction: row; } }
-        .panel { flex: 1; background: #1a1c23; padding: 10px; border-radius: 8px; border: 1px solid #2d3139; }
-        ul { padding-left: 15px; max-height: 180px; overflow-y: auto; margin: 5px 0 0 0; list-style-type: none; padding-inline-start: 0; }
-        li { padding: 4px 0; border-bottom: 1px solid #2d3139; font-size: 0.9em; display: flex; justify-content: space-between; }
-        .empty-notice { color: #9ca3af; font-size: 0.9em; text-align: center; margin: 10px 0; }
-        .gift-info { color: #25f4ee; font-weight: bold; }
+        .monitor { display: flex; gap: 10px; }
+        .panel { flex: 1; background: #1a1c23; padding: 10px; border-radius: 8px; }
+        ul { padding-left: 15px; max-height: 150px; overflow-y: auto; }
+        .empty-notice { color: #9ca3af; font-size: 0.9em; }
     </style>
 </head>
 <body>
@@ -29,35 +24,32 @@
         <input type="text" id="username-input" placeholder="@usuario_tiktok">
         <button id="connect-btn">Conectar</button>
         <button id="disconnect-btn">Desconectar</button>
-        <p id="status-label" style="font-size: 0.85em; margin-top: 8px; color: #9ca3af;">Estado: Desconectado</p>
+        <p id="status-label" style="font-size: 0.85em; margin-top: 8px;">Estado: Desconectado</p>
     </div>
 
     <div class="card">
         <h3>⚙️ Repositorio de Sonidos</h3>
-        <p style="font-size: 0.85em; color: #9ca3af; margin-top: 0;">Asigna un audio para cada interacción en TikTok.</p>
-        <label style="font-size: 0.85em;">Nuevos Seguidores</label>
+        <p style="font-size: 0.85em; color: #9ca3af;">Asigna un audio para cada interacción en TikTok.</p>
+        <label>Nuevos Seguidores</label>
         <select id="follow-sound-select"><option value="">Ninguno (Silencio)</option></select>
-        <label style="font-size: 0.85em; margin-top: 10px; display: block;">Alerta de Regalos</label>
+        <label style="margin-top: 10px; display: block;">Alerta de Regalos</label>
         <select id="gift-sound-select"><option value="">Ninguno (Silencio)</option></select>
     </div>
 
     <div class="monitor">
         <div class="panel">
-            <h4 style="margin-top: 0;">📊 SEGUIDORES <span id="count-followers" style="float: right;">0</span></h4>
+            <h4>📊 SEGUIDORES <span id="count-followers" style="float: right;">0</span></h4>
             <ul id="followers-container"><p class="empty-notice">Esperando seguidores...</p></ul>
         </div>
         <div class="panel">
-            <h4 style="margin-top: 0;">🎁 REGALOS <span id="count-gifters" style="float: right;">0</span></h4>
+            <h4>🎁 REGALOS <span id="count-gifters" style="float: right;">0</span></h4>
             <ul id="gifters-container"><p class="empty-notice">Esperando regalos...</p></ul>
         </div>
     </div>
 
     <script src="/socket.io/socket.io.js"></script>
     <script>
-        const socket = io({
-            transports: ['websocket', 'polling']
-        });
-
+        const socket = io(); 
         let alertSoundsConfig = { follow: '', gift: '' };
 
         const connectBtn = document.getElementById('connect-btn');
@@ -78,7 +70,7 @@
         });
 
         connectBtn.addEventListener('click', () => {
-            const user = usernameInput.value.trim();
+            const user = usernameInput.value;
             if(user) {
                 statusLabel.textContent = "Estado: Intentando conectar...";
                 statusLabel.style.color = "#f3f4f6";
@@ -120,20 +112,17 @@
                         selectEl.appendChild(option);
                     });
                 }
+                selectEl.addEventListener('change', (e) => {
+                    const type = id.split('-'); 
+                    alertSoundsConfig[type[0]] = e.target.value;
+                });
             });
-        });
-
-        document.getElementById('follow-sound-select').addEventListener('change', (e) => {
-            alertSoundsConfig.follow = e.target.value;
-        });
-        document.getElementById('gift-sound-select').addEventListener('change', (e) => {
-            alertSoundsConfig.gift = e.target.value;
         });
 
         socket.on('play-alert', (data) => {
             const chosenSoundFile = alertSoundsConfig[data.type];
             if (chosenSoundFile) {
-                const audio = new Audio(`/Sounds/${encodeURIComponent(chosenSoundFile)}`);
+                const audio = new Audio(`/Sounds/${chosenSoundFile}`);
                 audio.play().catch(err => console.log("Bloqueo de audio:", err));
             }
         });
@@ -141,11 +130,10 @@
         socket.on('update-interactions', (activeUsers) => {
             const followersList = document.getElementById('followers-container');
             const giftersList = document.getElementById('gifters-container');
-            
             if (followersList) {
                 document.getElementById('count-followers').textContent = activeUsers.followers.length;
                 followersList.innerHTML = activeUsers.followers.length > 0
-                    ? activeUsers.followers.map(user => `<li><span>@${user}</span> <span style="color: #9ca3af; font-size: 0.8em;">Seguidor</span></li>`).join('')
+                    ? activeUsers.followers.map(user => `<li>@${user}</li>`).join('')
                     : '<p class="empty-notice">Esperando seguidores...</p>';
             }
 
@@ -161,15 +149,6 @@
                     : '<p class="empty-notice">Esperando regalos...</p>';
             }
         });
-
-        // Registrar Service Worker para permitir la PWA en Android
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js')
-                    .then(reg => console.log('Service Worker registrado', reg))
-                    .catch(err => console.log('Error en Service Worker', err));
-            });
-        }
     </script>
 </body>
 </html>

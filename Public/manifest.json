@@ -1,0 +1,17 @@
+{
+  "name": "StreamAlerts LIVE",
+  "short_name": "StreamAlerts",
+  "start_url": "/index.html",
+  "display": "standalone",
+  "background_color": "#0f1117",
+  "theme_color": "#1a1c23",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/logo.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

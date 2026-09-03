@@ -150,7 +150,16 @@
                     `).join('')
                     : '<p class="empty-notice">Esperando regalos...</p>';
             }
-        });
+        }); 
+    <script>
+        // Registrar el Service Worker para permitir la instalación en Android
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js')
+                    .then(reg => console.log('Service Worker registrado', reg))
+                    .catch(err => console.log('Error en Service Worker', err));
+            });
+        }
     </script>
 </body>
 </html>

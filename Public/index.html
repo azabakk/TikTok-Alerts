@@ -18,50 +18,52 @@
         }
         .header-title {
             color: #ff3b5c;
-            font-size: 1.2rem;
+            font-size: 1.1rem;
             font-weight: bold;
-            margin-bottom: 15px;
+            margin-bottom: 12px;
         }
         .card {
             background-color: #1a1c23;
             border-radius: 8px;
-            padding: 15px;
-            margin-bottom: 15px;
+            padding: 12px;
+            margin-bottom: 12px;
             border: 1px solid #2a2d37;
         }
         .card-title {
-            font-size: 0.95rem;
+            font-size: 0.9rem;
             font-weight: 600;
-            margin-bottom: 10px;
+            margin-bottom: 8px;
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 6px;
         }
         input, select {
             width: 100%;
-            padding: 10px;
+            padding: 8px;
             background-color: #12141a;
             border: 1px solid #2a2d37;
             border-radius: 4px;
             color: #fff;
-            margin-bottom: 10px;
+            margin-bottom: 8px;
             box-sizing: border-box;
+            font-size: 0.9rem;
         }
         button {
             width: 100%;
-            padding: 10px;
+            padding: 9px;
             background-color: #ff3b5c;
             color: white;
             border: none;
             border-radius: 4px;
             font-weight: bold;
             cursor: pointer;
+            font-size: 0.9rem;
         }
         button:active {
             opacity: 0.9;
         }
         .status {
-            font-size: 0.85rem;
+            font-size: 0.8rem;
             color: #a0a0a5;
             margin-top: 5px;
         }
@@ -74,31 +76,36 @@
             background-color: #1a1c23;
             border: 1px solid #2a2d37;
             border-radius: 8px;
-            padding: 12px;
+            padding: 10px;
         }
         .stat-header {
-            font-size: 0.8rem;
+            font-size: 0.75rem;
             color: #a0a0a5;
             font-weight: bold;
-            margin-bottom: 5px;
+            margin-bottom: 4px;
         }
         .stat-value {
-            font-size: 1.2rem;
+            font-size: 1.1rem;
             font-weight: bold;
         }
         .stat-desc {
-            font-size: 0.75rem;
+            font-size: 0.7rem;
             color: #707075;
-            margin-top: 5px;
+            margin-top: 4px;
+        }
+        .label-desc {
+            font-size: 0.75rem;
+            color: #a0a0a5;
+            margin-bottom: 6px;
         }
         .label-group {
-            margin-bottom: 10px;
+            margin-bottom: 8px;
         }
         .label-group label {
-            font-size: 0.85rem;
+            font-size: 0.8rem;
             color: #b0b0b5;
             display: block;
-            margin-bottom: 4px;
+            margin-bottom: 3px;
         }
     </style>
 </head>
@@ -109,7 +116,7 @@
     <!-- Conectar Transmisión -->
     <div class="card">
         <div class="card-title">🔗 Conectar Transmisión</div>
-        <input type="text" id="usernameInput" placeholder="Usuario de TikTok">
+        <input type="text" id="usernameInput" placeholder="Usuario de TikTok (ej. @usuario)">
         <button id="connectBtn">Conectar</button>
         <div class="status" id="connectionStatus">Estado: Desconectado</div>
     </div>
@@ -117,13 +124,12 @@
     <!-- Repositorio de Sonidos -->
     <div class="card">
         <div class="card-title">⚙️ Repositorio de Sonidos</div>
-        <div style="font-size: 0.8rem; color: #a0a0a5; margin-bottom: 10px;">Asigna un audio para cada interacción en TikTok</div>
+        <div class="label-desc">Asigna un audio para cada interacción en TikTok</div>
         
         <div class="label-group">
             <label>Nuevos Seguidores</label>
             <select id="soundFollower">
                 <option value="">Ninguno (Silencio)</option>
-                <!-- Agrega aquí los nombres reales de tus archivos en la carpeta Sounds -->
                 <option value="follower.mp3">Seguidor por defecto</option>
             </select>
         </div>
@@ -153,37 +159,43 @@
 
     <script>
         let ws = null;
-        let reconnectInterval = null;
         let isConnected = false;
 
         const connectBtn = document.getElementById('connectBtn');
         const usernameInput = document.getElementById('usernameInput');
         const connectionStatus = document.getElementById('connectionStatus');
+        
         const followerCountEl = document.getElementById('followerCount');
         const giftCountEl = document.getElementById('giftCount');
         const followerStatusEl = document.getElementById('followerStatus');
         const giftStatusEl = document.getElementById('giftStatus');
 
+        const soundFollowerSelect = document.getElementById('soundFollower');
+        const soundGiftSelect = document.getElementById('soundGift');
+
         let followersCount = 0;
         let giftsCount = 0;
 
-        // Reproductor de audio seguro (soluciona el bloqueo en móviles)
-        function playSound(filename) {
-            if (!filename) return;
+        // Reproductor de audio que lee el archivo seleccionado en el combo box
+        function playSelectedSound(selectElement) {
+            const filename = selectElement.value;
+            if (!filename || filename === "") return;
+            
             const audio = new Audio(`Sounds/${filename}`);
             audio.play().catch(error => {
-                console.log("Audio bloqueado por políticas del navegador:", error);
+                console.log("Audio bloqueado o error al reproducir:", error);
             });
         }
 
-        // Detecta dinámicamente el protocolo seguro wss:// o ws:// según Render
-        function getWebSocketURL() {
+        // Determina la URL del WebSocket de forma segura para Render
+        function getWSUrl() {
             const loc = window.location;
-            const protocol = loc.protocol === 'https:' ? 'wss://' : 'ws://';
-            return `${protocol}${loc.host}`;
+            const proto = loc.protocol === 'https:' ? 'wss://' : 'ws://';
+            return `${proto}${loc.host}`;
         }
 
-        function connectWebSocket(username) {
+        function conectar() {
+            const username = usernameInput.value.trim();
             if (!username) {
                 alert("Por favor ingresa un usuario de TikTok");
                 return;
@@ -192,22 +204,19 @@
             connectionStatus.textContent = "Estado: Conectando...";
             connectionStatus.style.color = "#ff9800";
 
-            ws = new WebSocket(getWebSocketURL());
+            // Desbloquear audio del navegador con interacción táctil
+            const unlockAudio = new Audio();
+            unlockAudio.play().catch(() => {});
+
+            ws = new WebSocket(getWSUrl());
 
             ws.onopen = () => {
                 isConnected = true;
                 connectionStatus.textContent = "Estado: Conectado";
                 connectionStatus.style.color = "#4caf50";
-                connectBtn.textContent = "Desconectar";
-                connectBtn.style.backgroundColor = "#d32f2f";
-
-                // Enviar el usuario configurado al backend
+                
+                // Enviar el usuario al servidor backend
                 ws.send(JSON.stringify({ action: 'set_username', username: username }));
-
-                if (reconnectInterval) {
-                    clearInterval(reconnectInterval);
-                    reconnectInterval = null;
-                }
             };
 
             ws.onmessage = (event) => {
@@ -218,62 +227,49 @@
                         followersCount++;
                         followerCountEl.textContent = followersCount;
                         followerStatusEl.textContent = `Nuevo: ${data.user || 'Usuario'}`;
-                        playSound(document.getElementById('soundFollower').value);
-                    } else if (data.type === 'gift') {
+                        playSelectedSound(soundFollowerSelect);
+                    } 
+                    else if (data.type === 'gift') {
                         giftsCount += (data.count || 1);
                         giftCountEl.textContent = giftsCount;
                         giftStatusEl.textContent = `${data.user || 'Usuario'} envió regalo`;
-                        playSound(document.getElementById('soundGift').value);
+                        playSelectedSound(soundGiftSelect);
+                    }
+                    else if (data.type === 'status') {
+                        connectionStatus.textContent = `Estado: ${data.message}`;
                     }
                 } catch (e) {
-                    console.error("Error al procesar mensaje:", e);
+                    console.error("Error al procesar mensaje del servidor:", e);
                 }
             };
 
             ws.onclose = () => {
-                handleDisconnect();
+                desconectarUI("Estado: Desconectado");
             };
 
             ws.onerror = (error) => {
                 console.error("Error en WebSocket:", error);
-                handleDisconnect();
+                desconectarUI("Estado: Error de conexión");
             };
         }
 
-        function handleDisconnect() {
+        function desconectarUI(mensaje) {
             isConnected = false;
-            connectionStatus.textContent = "Estado: Desconectado (Reintentando...)";
+            connectionStatus.textContent = mensaje;
             connectionStatus.style.color = "#f44336";
-            connectBtn.textContent = "Conectar";
-            connectBtn.style.backgroundColor = "#ff3b5c";
-
-            // Intento automático de reconexión cada 5 segundos si el usuario no cerró manualmente
-            if (!reconnectInterval && usernameInput.value.trim() !== "") {
-                reconnectInterval = setInterval(() => {
-                    connectWebSocket(usernameInput.value.trim());
-                }, 5000);
+            if (ws) {
+                ws.close();
+                ws = null;
             }
         }
 
         connectBtn.addEventListener('click', () => {
-            // Desbloqueo forzado de audio por interacción táctil
-            const dummyAudio = new Audio();
-            dummyAudio.play().catch(() => {});
-
             if (isConnected) {
-                if (ws) ws.close();
-                if (reconnectInterval) clearInterval(reconnectInterval);
-                handleDisconnect();
-                connectionStatus.textContent = "Estado: Desconectado";
+                desconectarUI("Estado: Desconectado");
             } else {
-                connectWebSocket(usernameInput.value.trim());
+                conectar();
             }
         });
-
-        // Registrar Service Worker de forma segura
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('sw.js').catch(err => console.log('SW error:', err));
-        }
     </script>
 </body>
 </html>

@@ -1,4 +1,5 @@
 const express = require('express');
+const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
 const fs = require('fs');
@@ -13,14 +14,16 @@ const io = new Server(server, {
     allowEIO3: true
 });
 
-app.use(express.static('public'));
+// Ajustado a mayúscula para coincidir con tu carpeta de GitHub
+app.use(express.static('Public'));
 
 let activeUsers = { followers: [], gifters: [] };
 let sessionTimeout = null;
 
 function getAvailableSounds() {
     try {
-        const soundsDir = path.join(__dirname, 'public', 'sounds');
+        // Ajustado a mayúsculas para leer tu repositorio
+        const soundsDir = path.join(__dirname, 'Public', 'Sounds');
         if (!fs.existsSync(soundsDir)) return [];
         return fs.readdirSync(soundsDir).filter(file => file.endsWith('.mp3'));
     } catch (error) {
@@ -37,7 +40,6 @@ io.on('connection', (socket) => {
         const cleanUsername = tiktokUsername.replace('@', '').trim();
         
         try {
-            // Inicialización estable
             tiktokConnection = new TikTokLiveConnection(cleanUsername, { 
                 processInitialData: false 
             });
@@ -57,7 +59,6 @@ io.on('connection', (socket) => {
                 socket.emit('connection-status', { status: 'disconnected', message: `Rechazado: ${err.message}` });
             });
 
-            // Evento cuando un usuario entra a la sala
             tiktokConnection.on('member', (data) => {
                 const username = data.uniqueId || data.nickname || (data.user && data.user.uniqueId) || (data.user && data.user.nickname);
                 if (username && !activeUsers.followers.includes(username)) {
@@ -67,7 +68,6 @@ io.on('connection', (socket) => {
                 io.emit('play-alert', { type: 'follow', name: username || 'Usuario' });
             });
 
-            // Evento cuando alguien sigue la cuenta
             tiktokConnection.on('follow', (data) => {
                 const username = data.uniqueId || data.nickname || (data.user && data.user.uniqueId) || (data.user && data.user.nickname);
                 if (username && !activeUsers.followers.includes(username)) {
@@ -77,7 +77,6 @@ io.on('connection', (socket) => {
                 io.emit('play-alert', { type: 'follow', name: username || 'Nuevo Seguidor' });
             });
 
-            // Evento cuando envían un regalo (Blindado para capturar nombres reales)
             tiktokConnection.on('gift', (data) => {
                 if (data.giftType === 1 && !data.repeatEnd) return;
                 

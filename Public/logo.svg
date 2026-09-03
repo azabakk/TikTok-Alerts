@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="neonGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#25f4ee" />
+      <stop offset="100%" stop-color="#fe2c55" />
+    </linearGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="8" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  <!-- Fondo oscuro redondeado -->
+  <rect width="512" height="512" rx="115" fill="#1a1c23" />
+  <!-- Ondas de transmisión de alerta -->
+  <path d="M140 380 Q 256 460 372 380" fill="none" stroke="#25f4ee" stroke-width="28" stroke-linecap="round" filter="url(#glow)"/>
+  <path d="M140 132 Q 256 52 372 132" fill="none" stroke="#fe2c55" stroke-width="28" stroke-linecap="round" filter="url(#glow)"/>
+  <!-- Play central de Stream -->
+  <path d="M210 180 L350 256 L210 332 Z" fill="url(#neonGrad)" filter="url(#glow)"/>
+</svg>

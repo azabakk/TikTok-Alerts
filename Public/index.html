@@ -51,7 +51,9 @@
 
     <script src="/socket.io/socket.io.js"></script>
     <script>
-        const socket = io(); 
+        const socket = io('https://alerts-qu11.onrender.com', {
+    transports: ['websocket', 'polling']
+});
         let alertSoundsConfig = { follow: '', gift: '' };
 
         const connectBtn = document.getElementById('connect-btn');

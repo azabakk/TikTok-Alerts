@@ -1,122 +1,118 @@
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
-const { WebcastPushConnection } = require('tiktok-live-connector');
-const path = require('path');
 const fs = require('fs');
+const path = require('path');
+const { TikTokLiveConnection } = require('tiktok-live-connector');
 
 const app = express();
 const server = http.createServer(app);
+
 const io = new Server(server, {
-    cors: { origin: "*" }
+    cors: { origin: "*", methods: ["GET", "POST"], credentials: true },
+    allowEIO3: true
 });
 
-// Servir archivos estáticos desde la carpeta 'Public'
-app.use(express.static(path.join(__dirname, 'Public')));
-// Servir la carpeta de sonidos con la 'S' mayúscula
-app.use('/Sounds', express.static(path.join(__dirname, 'Sounds')));
+// Ajustado a mayúscula para coincidir con tu carpeta de GitHub
+app.use(express.static('Public'));
+
+let activeUsers = { followers: [], gifters: [] };
+let sessionTimeout = null;
+
+function getAvailableSounds() {
+    try {
+        // Ajustado a mayúsculas para leer tu repositorio
+        const soundsDir = path.join(__dirname, 'Public', 'Sounds');
+        if (!fs.existsSync(soundsDir)) return [];
+        return fs.readdirSync(soundsDir).filter(file => file.endsWith('.mp3'));
+    } catch (error) {
+        return [];
+    }
+}
 
 io.on('connection', (socket) => {
-    console.log('Cliente conectado:', socket.id);
-
-    // Leer la carpeta Sounds y enviar la lista al cliente de inmediato
-    const soundsDir = path.join(__dirname, 'Sounds');
-    if (fs.existsSync(soundsDir)) {
-        fs.readdir(soundsDir, (err, files) => {
-            if (!err) {
-                const audioFiles = files.filter(file => file.endsWith('.mp3') || file.endsWith('.wav') || file.endsWith('.ogg'));
-                socket.emit('available-sounds', audioFiles);
-            } else {
-                socket.emit('available-sounds', []);
-            }
-        });
-    } else {
-        socket.emit('available-sounds', []);
-    }
-
-    let tiktokLiveConnection = null;
-    let activeUsers = {
-        followers: [],
-        gifters: []
-    };
+    let tiktokConnection = null;
+    socket.emit('available-sounds', getAvailableSounds());
 
     socket.on('start-live', (tiktokUsername) => {
         if (!tiktokUsername) return;
+        const cleanUsername = tiktokUsername.replace('@', '').trim();
         
-        if (tiktokLiveConnection) {
-            try {
-                tiktokLiveConnection.disconnect();
-            } catch(e) {}
-        }
+        try {
+            tiktokConnection = new TikTokLiveConnection(cleanUsername, { 
+                processInitialData: false 
+            });
+            
+            tiktokConnection.connect().then(state => {
+                console.log(`Conectado exitosamente al live de @${cleanUsername}`);
+                socket.emit('connection-status', { status: 'connected', message: `Conectado al live de @${cleanUsername}` });
+                io.emit('update-interactions', activeUsers);
 
-        const cleanUsername = tiktokUsername.replace(/^@/, '');
-        
-        // Conexión estable y blindada para capturar nombres reales
-        tiktokLiveConnection = new WebcastPushConnection(cleanUsername, {
-            processInitialData: false
-        });
+                sessionTimeout = setTimeout(() => {
+                    if (tiktokConnection) tiktokConnection.disconnect();
+                    socket.emit('connection-status', { status: 'disconnected', message: 'Límite de tiempo alcanzado' });
+                }, 21600000); 
 
-        tiktokLiveConnection.connect().then(state => {
-            console.log(`Conectado a la sala de TikTok: ${state.roomId}`);
-            socket.emit('connection-status', { status: 'connected', message: `Conectado a @${cleanUsername}` });
-        }).catch(err => {
-            console.error('Error al conectar a TikTok:', err);
-            socket.emit('connection-status', { status: 'disconnected', message: 'No se pudo conectar. ¿El usuario está en directo?' });
-        });
+            }).catch(err => {
+                console.error(`TikTok rechazó la conexión a @${cleanUsername}:`, err.message);
+                socket.emit('connection-status', { status: 'disconnected', message: `Rechazado: ${err.message}` });
+            });
 
-        // Evento de Seguidores
-        tiktokLiveConnection.on('social', (data) => {
-            if (data.displayType && data.displayType.includes('follow')) {
-                const username = data.uniqueId || data.nickname || 'Usuario';
-                if (!activeUsers.followers.includes(username)) {
-                    activeUsers.followers.unshift(username);
-                    if (activeUsers.followers.length > 20) activeUsers.followers.pop();
+            tiktokConnection.on('member', (data) => {
+                const username = data.uniqueId || data.nickname || (data.user && data.user.uniqueId) || (data.user && data.user.nickname);
+                if (username && !activeUsers.followers.includes(username)) {
+                    activeUsers.followers.push(username);
+                    io.emit('update-interactions', activeUsers);
                 }
-                socket.emit('update-interactions', activeUsers);
-                socket.emit('play-alert', { type: 'follow' });
-            }
-        });
+                io.emit('play-alert', { type: 'follow', name: username || 'Usuario' });
+            });
 
-        // Evento de Regalos
-        tiktokLiveConnection.on('gift', (data) => {
-            if (data.giftType === 1 || !data.repeatEnd || data.repeatEnd === true) {
-                const giftObj = {
-                    username: data.uniqueId || data.nickname || 'Usuario',
-                    giftName: data.giftName || 'Regalo',
-                    diamonds: (data.diamondCount || 0) * (data.repeatCount || 1)
-                };
-                activeUsers.gifters.unshift(giftObj);
-                if (activeUsers.gifters.length > 20) activeUsers.gifters.pop();
+            tiktokConnection.on('follow', (data) => {
+                const username = data.uniqueId || data.nickname || (data.user && data.user.uniqueId) || (data.user && data.user.nickname);
+                if (username && !activeUsers.followers.includes(username)) {
+                    activeUsers.followers.push(username);
+                    io.emit('update-interactions', activeUsers);
+                }
+                io.emit('play-alert', { type: 'follow', name: username || 'Nuevo Seguidor' });
+            });
+
+            tiktokConnection.on('gift', (data) => {
+                if (data.giftType === 1 && !data.repeatEnd) return;
                 
-                socket.emit('update-interactions', activeUsers);
-                socket.emit('play-alert', { type: 'gift' });
-            }
-        });
+                const username = data.uniqueId || data.nickname || (data.user && data.user.uniqueId) || (data.user && data.user.nickname) || 'Donador';
+                const giftName = data.giftName || (data.gift && data.gift.name) || 'Regalo';
+                const diamondCount = (data.diamondCount || 1) * (data.repeatCount || 1);
+                
+                activeUsers.gifters.push({ username, giftName, diamonds: diamondCount });
+                io.emit('update-interactions', activeUsers);
+
+                let tier = diamondCount >= 5000 ? 'epic' : diamondCount >= 1000 ? 'high' : diamondCount >= 100 ? 'medium' : 'low';
+                io.emit('play-alert', { type: 'gift', name: username, giftName, tier, diamonds: diamondCount });
+            });
+
+        } catch (error) {
+            console.error("Fallo interno de la librería:", error.message);
+            socket.emit('connection-status', { status: 'disconnected', message: `Fallo interno: ${error.message}` });
+        }
     });
 
     socket.on('stop-live', () => {
-        if (tiktokLiveConnection) {
-            try {
-                tiktokLiveConnection.disconnect();
-            } catch(e) {}
-            tiktokLiveConnection = null;
+        if (tiktokConnection) {
+            try { tiktokConnection.disconnect(); } catch (e) {}
+            clearTimeout(sessionTimeout);
+            activeUsers = { followers: [], gifters: [] };
+            io.emit('update-interactions', activeUsers);
+            socket.emit('connection-status', { status: 'disconnected', message: 'Desconectado' });
+            console.log("Desconexión manual solicitada por el usuario.");
         }
-        activeUsers = { followers: [], gifters: [] };
-        socket.emit('connection-status', { status: 'disconnected', message: 'Desconectado de la transmisión' });
-        socket.emit('update-interactions', activeUsers);
     });
 
     socket.on('disconnect', () => {
-        if (tiktokLiveConnection) {
-            try {
-                tiktokLiveConnection.disconnect();
-            } catch(e) {}
+        if (tiktokConnection) {
+            try { tiktokConnection.disconnect(); } catch (e) {}
         }
-        console.log('Cliente desconectado');
     });
 });
 
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => {
-    console.log(`Servidor corriendo en puerto ${PORT}`);
-});
+server.listen(PORT, () => console.log(`Servidor en puerto ${PORT}`));

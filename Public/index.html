@@ -4,163 +4,275 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>StreamAlerts LIVE</title>
-        <link rel="manifest" href="/manifest.json">
-    <meta name="theme-color" content="#1a1c23">
+    <link rel="manifest" href="manifest.json">
     <style>
-        body { background-color: #0f1117; color: #f3f4f6; font-family: sans-serif; padding: 20px; }
-        .card { background: #1a1c23; padding: 15px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #2d3139; }
-        input, select, button { width: 100%; padding: 10px; margin-top: 5px; background: #2d3139; color: white; border: none; border-radius: 4px; }
-        button { background: #fe2c55; font-weight: bold; cursor: pointer; }
-        #disconnect-btn { background: #374151; display: none; }
-        .monitor { display: flex; gap: 10px; }
-        .panel { flex: 1; background: #1a1c23; padding: 10px; border-radius: 8px; }
-        ul { padding-left: 15px; max-height: 150px; overflow-y: auto; }
-        .empty-notice { color: #9ca3af; font-size: 0.9em; }
+        body {
+            background-color: #0f1115;
+            color: #e1e1e6;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            margin: 0;
+            padding: 15px;
+        }
+        h1, h2, h3 {
+            margin: 0 0 10px 0;
+        }
+        .header-title {
+            color: #ff3b5c;
+            font-size: 1.2rem;
+            font-weight: bold;
+            margin-bottom: 15px;
+        }
+        .card {
+            background-color: #1a1c23;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+            border: 1px solid #2a2d37;
+        }
+        .card-title {
+            font-size: 0.95rem;
+            font-weight: 600;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        input, select {
+            width: 100%;
+            padding: 10px;
+            background-color: #12141a;
+            border: 1px solid #2a2d37;
+            border-radius: 4px;
+            color: #fff;
+            margin-bottom: 10px;
+            box-sizing: border-box;
+        }
+        button {
+            width: 100%;
+            padding: 10px;
+            background-color: #ff3b5c;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        button:active {
+            opacity: 0.9;
+        }
+        .status {
+            font-size: 0.85rem;
+            color: #a0a0a5;
+            margin-top: 5px;
+        }
+        .stats-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+        .stat-box {
+            background-color: #1a1c23;
+            border: 1px solid #2a2d37;
+            border-radius: 8px;
+            padding: 12px;
+        }
+        .stat-header {
+            font-size: 0.8rem;
+            color: #a0a0a5;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        .stat-value {
+            font-size: 1.2rem;
+            font-weight: bold;
+        }
+        .stat-desc {
+            font-size: 0.75rem;
+            color: #707075;
+            margin-top: 5px;
+        }
+        .label-group {
+            margin-bottom: 10px;
+        }
+        .label-group label {
+            font-size: 0.85rem;
+            color: #b0b0b5;
+            display: block;
+            margin-bottom: 4px;
+        }
     </style>
 </head>
 <body>
-    <h2>StreamAlerts <span style="color: #fe2c55;">LIVE</span></h2>
 
+    <div class="header-title">StreamAlerts LIVE</div>
+
+    <!-- Conectar Transmisión -->
     <div class="card">
-        <h3>🔗 Conectar Transmisión</h3>
-        <input type="text" id="username-input" placeholder="@usuario_tiktok">
-        <button id="connect-btn">Conectar</button>
-        <button id="disconnect-btn">Desconectar</button>
-        <p id="status-label" style="font-size: 0.85em; margin-top: 8px;">Estado: Desconectado</p>
+        <div class="card-title">🔗 Conectar Transmisión</div>
+        <input type="text" id="usernameInput" placeholder="Usuario de TikTok">
+        <button id="connectBtn">Conectar</button>
+        <div class="status" id="connectionStatus">Estado: Desconectado</div>
     </div>
 
+    <!-- Repositorio de Sonidos -->
     <div class="card">
-        <h3>⚙️ Repositorio de Sonidos</h3>
-        <p style="font-size: 0.85em; color: #9ca3af;">Asigna un audio para cada interacción en TikTok.</p>
-        <label>Nuevos Seguidores</label>
-        <select id="follow-sound-select"><option value="">Ninguno (Silencio)</option></select>
-        <label style="margin-top: 10px; display: block;">Alerta de Regalos</label>
-        <select id="gift-sound-select"><option value="">Ninguno (Silencio)</option></select>
-    </div>
-
-    <div class="monitor">
-        <div class="panel">
-            <h4>📊 SEGUIDORES <span id="count-followers" style="float: right;">0</span></h4>
-            <ul id="followers-container"><p class="empty-notice">Esperando seguidores...</p></ul>
-        </div>
-        <div class="panel">
-            <h4>🎁 REGALOS <span id="count-gifters" style="float: right;">0</span></h4>
-            <ul id="gifters-container"><p class="empty-notice">Esperando regalos...</p></ul>
-        </div>
-    </div>
-
-    <script src="/socket.io/socket.io.js"></script>
-    <script>
-        const socket = io('https://alerts-qu11.onrender.com', {
-    transports: ['websocket', 'polling']
-});
-        let alertSoundsConfig = { follow: '', gift: '' };
-
-        const connectBtn = document.getElementById('connect-btn');
-        const disconnectBtn = document.getElementById('disconnect-btn');
-        const usernameInput = document.getElementById('username-input');
-        const statusLabel = document.getElementById('status-label');
-
-        statusLabel.textContent = "Estado: Buscando servidor...";
+        <div class="card-title">⚙️ Repositorio de Sonidos</div>
+        <div style="font-size: 0.8rem; color: #a0a0a5; margin-bottom: 10px;">Asigna un audio para cada interacción en TikTok</div>
         
-        socket.on('connect', () => {
-            statusLabel.textContent = "Estado: Servidor enlazado (Listo)";
-            statusLabel.style.color = "#25f4ee"; 
-        });
+        <div class="label-group">
+            <label>Nuevos Seguidores</label>
+            <select id="soundFollower">
+                <option value="">Ninguno (Silencio)</option>
+                <!-- Agrega aquí los nombres reales de tus archivos en la carpeta Sounds -->
+                <option value="follower.mp3">Seguidor por defecto</option>
+            </select>
+        </div>
 
-        socket.on('connect_error', (err) => {
-            statusLabel.textContent = "Error de red: " + err.message;
-            statusLabel.style.color = "#fe2c55"; 
-        });
+        <div class="label-group">
+            <label>Alerta de Regalos</label>
+            <select id="soundGift">
+                <option value="">Ninguno (Silencio)</option>
+                <option value="gift.mp3">Regalo por defecto</option>
+            </select>
+        </div>
+    </div>
+
+    <!-- Seguidores y Regalos -->
+    <div class="stats-container">
+        <div class="stat-box">
+            <div class="stat-header">👥 SEGUIDORES</div>
+            <div class="stat-value" id="followerCount">0</div>
+            <div class="stat-desc" id="followerStatus">Esperando seguidores...</div>
+        </div>
+        <div class="stat-box">
+            <div class="stat-header" style="color: #ff9800;">🎁 REGALOS</div>
+            <div class="stat-value" id="giftCount">0</div>
+            <div class="stat-desc" id="giftStatus">Esperando regalos...</div>
+        </div>
+    </div>
+
+    <script>
+        let ws = null;
+        let reconnectInterval = null;
+        let isConnected = false;
+
+        const connectBtn = document.getElementById('connectBtn');
+        const usernameInput = document.getElementById('usernameInput');
+        const connectionStatus = document.getElementById('connectionStatus');
+        const followerCountEl = document.getElementById('followerCount');
+        const giftCountEl = document.getElementById('giftCount');
+        const followerStatusEl = document.getElementById('followerStatus');
+        const giftStatusEl = document.getElementById('giftStatus');
+
+        let followersCount = 0;
+        let giftsCount = 0;
+
+        // Reproductor de audio seguro (soluciona el bloqueo en móviles)
+        function playSound(filename) {
+            if (!filename) return;
+            const audio = new Audio(`Sounds/${filename}`);
+            audio.play().catch(error => {
+                console.log("Audio bloqueado por políticas del navegador:", error);
+            });
+        }
+
+        // Detecta dinámicamente el protocolo seguro wss:// o ws:// según Render
+        function getWebSocketURL() {
+            const loc = window.location;
+            const protocol = loc.protocol === 'https:' ? 'wss://' : 'ws://';
+            return `${protocol}${loc.host}`;
+        }
+
+        function connectWebSocket(username) {
+            if (!username) {
+                alert("Por favor ingresa un usuario de TikTok");
+                return;
+            }
+
+            connectionStatus.textContent = "Estado: Conectando...";
+            connectionStatus.style.color = "#ff9800";
+
+            ws = new WebSocket(getWebSocketURL());
+
+            ws.onopen = () => {
+                isConnected = true;
+                connectionStatus.textContent = "Estado: Conectado";
+                connectionStatus.style.color = "#4caf50";
+                connectBtn.textContent = "Desconectar";
+                connectBtn.style.backgroundColor = "#d32f2f";
+
+                // Enviar el usuario configurado al backend
+                ws.send(JSON.stringify({ action: 'set_username', username: username }));
+
+                if (reconnectInterval) {
+                    clearInterval(reconnectInterval);
+                    reconnectInterval = null;
+                }
+            };
+
+            ws.onmessage = (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+                    
+                    if (data.type === 'follower') {
+                        followersCount++;
+                        followerCountEl.textContent = followersCount;
+                        followerStatusEl.textContent = `Nuevo: ${data.user || 'Usuario'}`;
+                        playSound(document.getElementById('soundFollower').value);
+                    } else if (data.type === 'gift') {
+                        giftsCount += (data.count || 1);
+                        giftCountEl.textContent = giftsCount;
+                        giftStatusEl.textContent = `${data.user || 'Usuario'} envió regalo`;
+                        playSound(document.getElementById('soundGift').value);
+                    }
+                } catch (e) {
+                    console.error("Error al procesar mensaje:", e);
+                }
+            };
+
+            ws.onclose = () => {
+                handleDisconnect();
+            };
+
+            ws.onerror = (error) => {
+                console.error("Error en WebSocket:", error);
+                handleDisconnect();
+            };
+        }
+
+        function handleDisconnect() {
+            isConnected = false;
+            connectionStatus.textContent = "Estado: Desconectado (Reintentando...)";
+            connectionStatus.style.color = "#f44336";
+            connectBtn.textContent = "Conectar";
+            connectBtn.style.backgroundColor = "#ff3b5c";
+
+            // Intento automático de reconexión cada 5 segundos si el usuario no cerró manualmente
+            if (!reconnectInterval && usernameInput.value.trim() !== "") {
+                reconnectInterval = setInterval(() => {
+                    connectWebSocket(usernameInput.value.trim());
+                }, 5000);
+            }
+        }
 
         connectBtn.addEventListener('click', () => {
-            const user = usernameInput.value;
-            if(user) {
-                statusLabel.textContent = "Estado: Intentando conectar...";
-                statusLabel.style.color = "#f3f4f6";
-                socket.emit('start-live', user);
-            }
-        });
+            // Desbloqueo forzado de audio por interacción táctil
+            const dummyAudio = new Audio();
+            dummyAudio.play().catch(() => {});
 
-        disconnectBtn.addEventListener('click', () => {
-            socket.emit('stop-live');
-        });
-
-        socket.on('connection-status', (data) => {
-            statusLabel.textContent = `Estado: ${data.message}`;
-            if(data.status === 'connected') {
-                connectBtn.style.display = 'none';
-                disconnectBtn.style.display = 'block';
-                usernameInput.disabled = true;
-                statusLabel.style.color = "#25f4ee";
+            if (isConnected) {
+                if (ws) ws.close();
+                if (reconnectInterval) clearInterval(reconnectInterval);
+                handleDisconnect();
+                connectionStatus.textContent = "Estado: Desconectado";
             } else {
-                connectBtn.style.display = 'block';
-                disconnectBtn.style.display = 'none';
-                usernameInput.disabled = false;
-                statusLabel.style.color = "#fe2c55";
+                connectWebSocket(usernameInput.value.trim());
             }
         });
 
-        socket.on('available-sounds', (soundsList) => {
-            const selectors = ['follow-sound-select', 'gift-sound-select'];
-            selectors.forEach(id => {
-                const selectEl = document.getElementById(id);
-                if (!selectEl) return;
-                
-                selectEl.innerHTML = '<option value="">Ninguno (Silencio)</option>';
-                if(soundsList && soundsList.length > 0) {
-                    soundsList.forEach(soundFile => {
-                        const option = document.createElement('option');
-                        option.value = soundFile;
-                        option.textContent = soundFile;
-                        selectEl.appendChild(option);
-                    });
-                }
-                selectEl.addEventListener('change', (e) => {
-                    const type = id.split('-'); 
-                    alertSoundsConfig[type[0]] = e.target.value;
-                });
-            });
-        });
-
-        socket.on('play-alert', (data) => {
-            const chosenSoundFile = alertSoundsConfig[data.type];
-            if (chosenSoundFile) {
-                const audio = new Audio(`/Sounds/${chosenSoundFile}`);
-                audio.play().catch(err => console.log("Bloqueo de audio:", err));
-            }
-        });
-
-        socket.on('update-interactions', (activeUsers) => {
-            const followersList = document.getElementById('followers-container');
-            const giftersList = document.getElementById('gifters-container');
-            if (followersList) {
-                document.getElementById('count-followers').textContent = activeUsers.followers.length;
-                followersList.innerHTML = activeUsers.followers.length > 0
-                    ? activeUsers.followers.map(user => `<li>@${user}</li>`).join('')
-                    : '<p class="empty-notice">Esperando seguidores...</p>';
-            }
-
-            if (giftersList) {
-                document.getElementById('count-gifters').textContent = activeUsers.gifters.length;
-                giftersList.innerHTML = activeUsers.gifters.length > 0
-                    ? activeUsers.gifters.map(giftObj => `
-                        <li>
-                            <span>@${giftObj.username}</span>
-                            <span class="gift-info">${giftObj.giftName} (${giftObj.diamonds}💎)</span>
-                        </li>
-                    `).join('')
-                    : '<p class="empty-notice">Esperando regalos...</p>';
-            }
-        }); 
-    <script>
-        // Registrar el Service Worker para permitir la instalación en Android
+        // Registrar Service Worker de forma segura
         if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js')
-                    .then(reg => console.log('Service Worker registrado', reg))
-                    .catch(err => console.log('Error en Service Worker', err));
-            });
+            navigator.serviceWorker.register('sw.js').catch(err => console.log('SW error:', err));
         }
     </script>
 </body>
